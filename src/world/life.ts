@@ -240,6 +240,21 @@ export class Life {
     return life;
   }
 
+  /** The nearest butterfly within `range` of `p` (on the wing, by day), for the familiar to chase. */
+  butterfly(p: Vector3, range: number): Vector3 | null {
+    let best: Vector3 | null = null;
+    let bd = range;
+    for (const b of this.butterflies) {
+      if (!b.obj.visible) continue;
+      const d = Math.hypot(b.obj.position.x - p.x, b.obj.position.z - p.z);
+      if (d < bd) {
+        bd = d;
+        best = b.obj.position;
+      }
+    }
+    return best;
+  }
+
   /** Called by the player each footstep. */
   footstep(at: Vector3, running: boolean) {
     const n = running ? 2 : 1;

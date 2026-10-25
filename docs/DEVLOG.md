@@ -249,6 +249,15 @@ multiplayer (live and async); magic drawn with rules, like *Witch Hat Atelier*.
 - Queen Seraphine gives a daily stipend; the Heart refills ink once a day; guards and lecterns.
 - Found while testing: other players' name tags stayed on screen indoors; they hide inside now.
 
+## 21. A more alive, cozier island
+
+Six pieces, one after another:
+
+- **A familiar** (`world/familiar.ts`): a cat, fox or frog built from primitives, with one rig and a
+  small state machine (follow, wander, sniff, chase, sit, nap, watch, lap, shelter, fire, play,
+  greet). It sleeps on the cottage rug while you're in, and the host's familiar keeps visitors company
+  (it rides in the published island snapshot; the hub checks it).
+
 ## How things were checked
 
 Every step was checked in a headless browser (screenshots, scripted clicks, keyboard and mouse

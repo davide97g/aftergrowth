@@ -24,6 +24,8 @@ export interface IslandSnap {
   stones: (StoneSnap | null)[];
   /** the island's shape and placed objects (see src/island/layout.ts) */
   layout?: unknown;
+  /** the owner's familiar, which keeps visitors company */
+  familiar?: { kind: string; name: string };
   updated: number;
 }
 

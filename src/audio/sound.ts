@@ -402,6 +402,64 @@ class Sound {
     }
   }
 
+  /** Your familiar: a purr (or a yip, or a ribbit) when petted, a little hello when it greets you. */
+  familiar(kind: "cat" | "fox" | "frog", what: "pet" | "greet") {
+    const t = this.now;
+    if (t === null) return;
+    const ctx = this.ctx!;
+    if (kind === "frog") {
+      // ribbit: two croaks, a buzzy low square through a narrow band
+      for (let i = 0; i < 2; i++) {
+        const f = ctx.createBiquadFilter();
+        f.type = "bandpass";
+        f.frequency.value = 700;
+        f.Q.value = 3;
+        f.connect(this.outside);
+        this.tone(what === "greet" ? 260 : 210, t + i * 0.17, 0.09, 0.12, "square", f, 170);
+      }
+      return;
+    }
+    if (what === "greet" || kind === "fox") {
+      // a meow sweeps up and down; a fox's yip is short and high
+      const fox = kind === "fox";
+      const o = ctx.createOscillator();
+      o.type = "sawtooth";
+      const base = fox ? 820 : 540;
+      o.frequency.setValueAtTime(base, t);
+      o.frequency.exponentialRampToValueAtTime(base * (fox ? 1.5 : 1.35), t + (fox ? 0.06 : 0.18));
+      o.frequency.exponentialRampToValueAtTime(base * (fox ? 0.9 : 0.75), t + (fox ? 0.16 : 0.45));
+      const soft = ctx.createBiquadFilter();
+      soft.type = "bandpass";
+      soft.frequency.value = fox ? 1600 : 1100;
+      soft.Q.value = 2;
+      const len = fox ? 0.18 : 0.5;
+      o.connect(soft).connect(this.env(t, 0.03, 0.05, len, this.outside));
+      o.start(t);
+      o.stop(t + len + 0.05);
+      if (fox && what === "pet") this.familiar("cat", "pet");
+      return;
+    }
+    // purr: low filtered noise, pulsing about 25 times a second
+    const src = ctx.createBufferSource();
+    src.buffer = this.noise;
+    src.loop = true;
+    const low = ctx.createBiquadFilter();
+    low.type = "lowpass";
+    low.frequency.value = 160;
+    const pulse = ctx.createGain();
+    pulse.gain.value = 0.5;
+    const lfo = ctx.createOscillator();
+    lfo.frequency.value = 24;
+    const depth = ctx.createGain();
+    depth.gain.value = 0.5;
+    lfo.connect(depth).connect(pulse.gain);
+    src.connect(low).connect(pulse).connect(this.env(t, 0.25, 0.22, 2.2));
+    src.start(t);
+    lfo.start(t);
+    src.stop(t + 2.5);
+    lfo.stop(t + 2.5);
+  }
+
   /** Pruning a tree: a soft wooden knock and a rustle. */
   chop() {
     const t = this.now;

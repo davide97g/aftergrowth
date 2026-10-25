@@ -1,5 +1,6 @@
 import { type Scene, Vector3 } from "three";
 import type { CameraRig } from "../core/camera";
+import { sound } from "../audio/sound";
 import { House } from "../house/house";
 import { Witch } from "../player/witch";
 import { type Ground, flat } from "../world/ground";
@@ -69,6 +70,11 @@ export class Cottage {
     this.indoors.enabled = false;
   }
 
+  /** the familiar changed: the one asleep indoors too */
+  refreshPet() {
+    this.house.refreshPet();
+  }
+
   get inside() {
     return this.room !== null;
   }
@@ -85,6 +91,8 @@ export class Cottage {
       exit: () => self?.leave(),
       sit: deps.rest.sitAt,
       pop: (t) => deps.hud.pop(t),
+      familiar: () => deps.state.familiar,
+      onPet: () => sound.familiar(deps.state.familiar.kind, "pet"),
     });
     self = new Cottage(house, deps);
     return self;

@@ -4,6 +4,7 @@ import { dirname, join } from "node:path";
 import { type WebSocket, WebSocketServer } from "ws";
 import type { AtlasEntry, ClientMsg, Deed, IslandSnap, Listing, Outline, Pose, Profile, ServerMsg } from "../shared/protocol.ts";
 import { CROPS, STALL, isItem, stallBounds } from "../shared/items.ts";
+import { FAMILIAR_KINDS, type FamiliarKind } from "../shared/familiars.ts";
 import { HUB_ID, KINGDOM_ID, MARKET_ID, PHRASES } from "../shared/protocol.ts";
 import { defaultHome, sanitizeLayout } from "../src/island/layout.ts";
 import { type Accounts, THEMES, body, json, openAccounts } from "./accounts.ts";
@@ -204,6 +205,8 @@ export async function attachHub(http: Server, file: string) {
           const snap: IslandSnap = {
             ...s, name: me.name, color: me.color, theme: THEMES.includes(s.theme) ? s.theme : "meadow", updated: Date.now(),
             layout: s.layout ? sanitizeLayout(s.layout, defaultHome(seedOf(me.id))) : undefined,
+            familiar: FAMILIAR_KINDS.includes(s.familiar?.kind as FamiliarKind) && typeof s.familiar?.name === "string"
+              ? { kind: s.familiar.kind, name: s.familiar.name.slice(0, 24) } : undefined,
           };
           const prev = store.islands[me.id];
           store.islands[me.id] = { snap, lastSeen: Date.now(), deeds: prev?.deeds ?? [] };

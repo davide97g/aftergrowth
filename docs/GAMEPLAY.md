@@ -16,6 +16,19 @@ Every system and its numbers. Values live in code; the file is named next to eac
   change them on the map's sidebar (Tab). The save lives on the server, so any browser will do.
 - Starting inventory: 20 coins, 8 ink, 2 wheat and 4 turnip seeds, a tin can full of water.
 
+## Your familiar (`world/familiar.ts`)
+
+- Every witch has a familiar: a cat (Mochi, to start), a fox or a frog. Change its kind and name on
+  the map's sidebar (Tab → You). It sleeps on the rug in the cottage while you're indoors.
+- It follows you, sits, wanders, sniffs flowers, chases butterflies (pouncing at the end), and naps
+  when you stand still for about 20 seconds. It sits and watches while you draw a glyph and hops
+  when a spell goes off nearby. When you sit on a bench it curls up beside you.
+- Rain: a cat or a fox huddles by you and shivers, then shakes itself dry when it stops; a frog
+  hops about in it. At night it curls up by a campfire near you.
+- F next to it (when nothing else is closer) pets it: a purr, a yip or a ribbit, and hearts.
+- It comes along to the market, the commons and Aetherhold. On a friend's island their familiar
+  keeps you company instead (it's part of the island they publish).
+
 ## Farming (`game/state.ts`, `farm/farm.ts`)
 
 | Crop | Wet hours to grow | Seed | Sells |

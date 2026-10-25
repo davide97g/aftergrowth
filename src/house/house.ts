@@ -11,7 +11,6 @@ import {
   Mesh,
   MeshBasicMaterial,
   MeshToonMaterial,
-  Object3D,
   PointLight,
   Scene,
   SphereGeometry,
@@ -27,6 +26,7 @@ import type { Mood } from "../world/daycycle";
 import { screen } from "../island/layout";
 import { type Pt, WalkMask } from "../world/walkmask";
 import { MusicBox } from "./music";
+import { type FamiliarRig, type FamiliarSave, animateRig, buildFamiliar, restPose } from "../world/familiar";
 
 const R = 4.2;
 const FACE = Math.PI / 4;
@@ -45,6 +45,9 @@ export interface HouseHooks {
   exit(): void;
   sit(seat: Vector3, yaw: number): void;
   pop(text: string): void;
+  /** your familiar sleeps on the rug */
+  familiar(): FamiliarSave;
+  onPet(): void;
 }
 
 /** Inside the egg cottage: a cutaway room to rest in. */
@@ -62,7 +65,7 @@ export class House implements Room {
   private flames: Mesh[] = [];
   private panes: MeshBasicMaterial[] = [];
   private cat!: Group;
-  private catHead!: Object3D;
+  private pet3d!: FamiliarRig;
   private purr = 0;
   private music = new MusicBox();
   private time = 0;
@@ -244,36 +247,24 @@ export class House implements Room {
     });
   }
 
+  /** A new familiar takes the old one's place on the rug. */
+  refreshPet() {
+    const old = this.cat;
+    this.cat = this.makeCat();
+    this.cat.position.copy(old.position);
+    this.cat.rotation.y = old.rotation.y;
+    old.removeFromParent();
+    this.scene.add(this.cat);
+    this.spots.cat = { pos: this.cat.position };
+  }
+
+  /** Your familiar, curled up asleep on the rug. */
   private makeCat() {
-    const g = new Group();
-    // a grey tabby: an orange cat vanishes on the orange rug
-    const fur = toon("rock-dark");
-    const cream = toon("flower-white");
-    const body = new Mesh(new SphereGeometry(0.28, 14, 10), fur);
-    body.scale.set(1.2, 0.6, 0.9);
-    body.position.y = 0.17;
-    const head = new Group();
-    const skull = new Mesh(new SphereGeometry(0.17, 14, 10), fur);
-    const muzzle = new Mesh(new SphereGeometry(0.08, 10, 8), cream);
-    muzzle.position.set(0, -0.04, 0.13);
-    for (const s of [1, -1]) {
-      const ear = new Mesh(new ConeGeometry(0.06, 0.12, 4), fur);
-      ear.position.set(0.09 * s, 0.15, 0);
-      ear.rotation.z = -0.3 * s;
-      const eye = new Mesh(new BoxGeometry(0.06, 0.012, 0.01), toon("ink"));
-      eye.position.set(0.065 * s, 0.02, 0.155);
-      head.add(ear, eye);
-    }
-    head.add(skull, muzzle);
-    head.position.set(0.3, 0.2, 0.05);
-    head.rotation.y = 0.6;
-    const tail = new Mesh(new TorusGeometry(0.22, 0.05, 6, 14, Math.PI * 1.2), fur);
-    tail.rotation.x = Math.PI / 2;
-    tail.position.set(-0.05, 0.08, 0);
-    g.add(body, head, tail);
-    g.traverse((o) => (o.castShadow = true));
-    this.catHead = head;
-    return g;
+    const rig = buildFamiliar(this.hooks.familiar().kind);
+    animateRig(rig, { ...restPose(), lie: 1, sleepy: 1 }, 0, 0, 0);
+    rig.root.scale.setScalar(1.3);
+    this.pet3d = rig;
+    return rig.root;
   }
 
   /** The camera stays on the room and only leans towards the witch. */
@@ -287,7 +278,7 @@ export class House implements Room {
     const d = (p: Vector3) => Math.hypot(p.x - near.x, p.z - near.z);
     const opts: Action[] = [
       { pos: sp.door.pos, reach: 1.3, label: "Step outside", act: () => this.hooks.exit() },
-      { pos: sp.cat.pos, reach: 1.2, label: "Pet the cat", act: () => this.pet() },
+      { pos: sp.cat.pos, reach: 1.2, label: `Pet ${this.hooks.familiar().name}`, act: () => this.pet() },
       { pos: sp.chair.pos, reach: 1.3, label: "Sit by the fire", act: () => this.hooks.sit(sp.chair.pos, sp.chair.yaw!) },
       { pos: sp.shelf.pos, reach: 1.5, label: "Read the grimoire", act: () => this.hooks.read() },
       {
@@ -305,7 +296,8 @@ export class House implements Room {
 
   private pet() {
     this.purr = 2.5;
-    this.hooks.pop("prrrr…");
+    this.hooks.onPet();
+    this.hooks.pop(this.pet3d.kind === "frog" ? "ribbit!" : this.pet3d.kind === "fox" ? "a happy yip" : "prrrr…");
   }
 
   update(dt: number, mood: Mood) {
@@ -321,11 +313,10 @@ export class House implements Room {
     this.window.color.copy(mood.sun);
     this.window.intensity = mood.sunIntensity * 0.45;
     this.hemi.intensity = 0.6 + (1 - mood.glow) * 0.5;
-    // the cat breathes, and lifts its head while purring
+    // your familiar breathes in its sleep, and lifts its head while purring
     this.purr = Math.max(0, this.purr - dt);
-    this.cat.scale.y = 1 + Math.sin(t * 1.6) * 0.04;
-    this.catHead.rotation.x = -Math.min(this.purr, 1) * 0.4;
-    this.catHead.rotation.z = Math.sin(t * 20) * 0.03 * Math.min(this.purr, 1);
+    const awake = Math.min(this.purr, 1);
+    animateRig(this.pet3d, { ...restPose(), lie: 1 - awake * 0.6, sleepy: 1 - awake, purr: awake }, t, 0, 0);
     const crank = this.scene.getObjectByName("crank");
     if (crank && this.music.playing) crank.rotation.x += dt * 3;
   }

@@ -26,6 +26,7 @@ import { Hud } from "../ui/hud";
 import { WorldMap } from "../ui/map";
 import { Satchel } from "../ui/satchel";
 import { Birds } from "../world/birds";
+import { FAMILIAR_KINDS, Familiar, type FamiliarKind } from "../world/familiar";
 import { sampleMood } from "../world/daycycle";
 import { Life } from "../world/life";
 import { Weather } from "../world/weather";
@@ -118,6 +119,18 @@ export async function startGame(account: Account) {
     life.footstep(at, running);
     sound.footstep(running);
   };
+  // your familiar comes everywhere with you, except to a friend's island, where theirs keeps you company
+  const familiarOf = () => host
+    ? (FAMILIAR_KINDS.includes(host.familiar?.kind as FamiliarKind) ? { kind: host.familiar!.kind as FamiliarKind, name: host.familiar!.name } : null)
+    : state.familiar;
+  const makeFamiliar = () => {
+    const spec = familiarOf();
+    if (!spec) return null;
+    const f = new Familiar(scene, world, witch, spec);
+    f.onVoice = (what) => sound.familiar(spec.kind, what);
+    return f;
+  };
+  let familiar = makeFamiliar();
   const rig = new CameraRig(witch.position);
   stage.usePost(rig.camera);
   if (kingdom) rig.minZoom = 0.4;
@@ -174,6 +187,7 @@ export async function startGame(account: Account) {
     flower: (obj, color) => flowers.addGrown(obj, color),
   }, everyone ? [] : stones, mine);
   magic.onCast = (spell, at, power) => {
+    if (familiar && familiar.position.distanceTo(at) < 6) familiar.startle();
     social.castSpell(spell, at, power);
     realm?.onCast(spell, at, power);
   };
@@ -291,6 +305,20 @@ export async function startGame(account: Account) {
         witch.react("cast");
       });
     },
+    familiar: {
+      get: () => state.familiar,
+      set: (f) => {
+        const kind = f.kind !== state.familiar.kind;
+        state.familiar = f;
+        persist();
+        cottage.refreshPet();
+        if (host) return;
+        if (kind) {
+          familiar?.dispose();
+          familiar = makeFamiliar();
+        } else if (familiar) familiar.spec = f;
+      },
+    },
     stuck: () => cottage.inside ? "Step outside first." : editor.active ? "Close the editor first." : travel.active ? "You are already on your way." : magic.drawing ? "Put the pen away first (Esc)." : null,
   });
   const portalAt = world.portalPos;
@@ -299,7 +327,7 @@ export async function startGame(account: Account) {
   // ---------- what F does outside ----------
   const outdoors = new Interactions(rig.camera);
   for (const p of [rest.action, garden.fill, garden.seat, garden.hive, garden.sign, cottage.door, workshop.cauldron, workshop.market,
-    workshop.pondside, ...(bazaar && stalls ? [bazaar.action, stalls.action] : []), ...(realm?.actions ?? []), palaceDoor, magic.contraptions.action, farm.action, flowers.action, gather.action, animals.action, animals.trough, social.mailbox, portal]) outdoors.add(p);
+    workshop.pondside, (near: Vector3) => familiar?.action(near) ?? null, ...(bazaar && stalls ? [bazaar.action, stalls.action] : []), ...(realm?.actions ?? []), palaceDoor, magic.contraptions.action, farm.action, flowers.action, gather.action, animals.action, animals.trough, social.mailbox, portal]) outdoors.add(p);
   outdoors.onAct = () => witch.react("gesture");
   input.onPick = (p) => (cottage.inside ? cottage.indoors : outdoors).clicked(p);
 
@@ -326,6 +354,8 @@ export async function startGame(account: Account) {
 
   // ---------- frame loop ----------
   const timer = new Timer();
+  /** seconds the witch has stood still, so the familiar knows when to nap */
+  let idle = 0;
   const loop = (now: number) => {
     timer.update(now);
     const dt = Math.min(timer.getDelta(), 0.05);
@@ -367,6 +397,17 @@ export async function startGame(account: Account) {
     gather.update(dt);
     animals.update(dt, editor.active);
     life.update(dt, mood, witch.position);
+    idle = witch.speed > 0.2 || magic.drawing ? 0 : idle + dt;
+    if (familiar) {
+      familiar.away = cottage.inside || travel.active;
+      familiar.update(dt, {
+        raining: weather.raining,
+        night: mood.glow,
+        idle,
+        fires: world.flames.map((f) => f.getWorldPosition(new Vector3())),
+        butterfly: (p, r) => life.butterfly(p, r),
+      });
+    }
     magic.update(dt, hours, mood);
     farm.update(dt, hours);
     flowers.update(hours);
@@ -422,5 +463,5 @@ export async function startGame(account: Account) {
   if (market) hud.toast("Lantern Market", "Six shops, new prices every day. Talk to a keeper at their counter.");
   if (kingdom) hud.toast("Aetherhold", "The royal city, seat of magic. Climb to the palace; the tavern, the Arcanum and the spell range are on the way.");
   // handy in the browser console while developing
-  Object.assign(window, { __game: { clock, witch, world, scene, camera: rig.camera, state, net, social, weather, sound, magic, satchel, shops, map } });
+  Object.assign(window, { __game: { familiar: () => familiar, clock, witch, world, scene, camera: rig.camera, state, net, social, weather, sound, magic, satchel, shops, map } });
 }

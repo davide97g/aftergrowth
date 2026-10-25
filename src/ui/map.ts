@@ -6,6 +6,7 @@ import { type ShapeId, SHAPE_IDS, outline, radii } from "../island/shapes";
 import { type Me, signOut } from "../net/account";
 import { COLORS, type Net, THEMES } from "../net/net";
 import type { Social } from "../net/social";
+import { FAMILIAR_KINDS, FAMILIAR_NAMES, type FamiliarKind, type FamiliarSave } from "../world/familiar";
 import type { PlaceIcon, World } from "../world/world";
 import type { Hud } from "./hud";
 
@@ -90,6 +91,8 @@ export interface MapDeps {
   teleport: (to: Vector3) => void;
   /** why the witch can't blink right now, or null */
   stuck: () => string | null;
+  /** your familiar, and changing it (a new kind or a new name) */
+  familiar: { get(): FamiliarSave; set(f: FamiliarSave): void };
 }
 
 /**
@@ -456,16 +459,24 @@ export class WorldMap {
       sections.push(h("section", {}, h("h3", {}, "Witches on this island"), h("ul", { class: "people" }, ...strangers.map((o) => h("li", {}, dot(o.color), h("span", {}, h("strong", {}, o.name)), btn("Add friend", "befriend", o.id, "primary"))))));
     }
     const name = h("input", { id: "me-name", maxlength: "24", value: me.name, autocomplete: "off" });
+    const pet = this.d.familiar.get();
+    const petName = h("input", { id: "pet-name", maxlength: "24", value: pet.name, autocomplete: "off" });
     sections.push(h("section", {}, h("h3", {}, "You"),
       h("label", { for: "me-name" }, "Name"), name,
       h("div", { class: "row" }, h("span", {}, "Hat"), ...COLORS.map((c) => h("button", { type: "button", class: "swatch", "data-act": "color", "data-id": c, style: `background:${c}`, "aria-label": `Hat colour ${c}`, "aria-pressed": String(c === me.color) }))),
       h("div", { class: "row" }, h("span", {}, "Your island"), ...THEMES.map((t) => h("button", { type: "button", class: "chip", "data-act": "theme", "data-id": t, "aria-pressed": String(t === me.theme) }, THEME_NAMES[t]))),
+      h("div", { class: "row" }, h("span", {}, "Familiar"), ...FAMILIAR_KINDS.map((k) => h("button", { type: "button", class: "chip", "data-act": "familiar", "data-id": k, "aria-pressed": String(k === pet.kind) }, FAMILIAR_NAMES[k]))),
+      h("label", { for: "pet-name" }, "Its name"), petName,
       h("div", { class: "row end" }, btn("Sign out", "signout", "", "link")),
     ));
     this.side.replaceChildren(...sections);
     name.addEventListener("change", () => {
       const v = name.value.trim().slice(0, 24);
       if (v) this.d.social.updateMe({ name: v });
+    });
+    petName.addEventListener("change", () => {
+      const v = petName.value.trim().slice(0, 24);
+      if (v) this.d.familiar.set({ ...this.d.familiar.get(), name: v });
     });
   }
 
@@ -502,6 +513,9 @@ export class WorldMap {
       case "theme":
         this.d.social.updateMe({ theme: id as Theme });
         if (this.d.islandId === this.d.me.id) return this.d.travel(null);
+        return this.renderSide();
+      case "familiar":
+        this.d.familiar.set({ ...this.d.familiar.get(), kind: id as FamiliarKind });
         return this.renderSide();
       case "signout":
         return void signOut();

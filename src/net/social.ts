@@ -162,6 +162,7 @@ export class Social {
       plots: this.state.plots.map((p) => ({ crop: p.crop, growth: Math.round(p.growth * 100) / 100, wet: Math.round(p.wet * 100) / 100, ...(p.locked ? { locked: true } : {}) })),
       stones: this.state.stones.map((s) => (s ? { spell: s.spell, power: s.power, strokes: s.strokes } : null)),
       layout: this.state.island,
+      familiar: this.state.familiar,
       updated: Date.now(),
     };
   }
@@ -169,7 +170,7 @@ export class Social {
   private publish(force = false) {
     if (this.visiting || !this.net.online) return;
     const snap = this.snapshot();
-    const key = JSON.stringify([snap.plots.map((p) => [p.crop, Math.floor(p.growth), p.wet > 0, !!p.locked]), snap.stones.map((s) => s?.spell), snap.theme, snap.name, snap.layout]);
+    const key = JSON.stringify([snap.plots.map((p) => [p.crop, Math.floor(p.growth), p.wet > 0, !!p.locked]), snap.stones.map((s) => s?.spell), snap.theme, snap.name, snap.layout, snap.familiar]);
     if (!force && key === this.lastPublished) return;
     this.lastPublished = key;
     this.net.send({ t: "publish", island: snap });
