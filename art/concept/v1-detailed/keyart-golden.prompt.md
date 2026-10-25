@@ -1,0 +1,3 @@
+Use your image generation tool to create ONE image, then copy the generated PNG to art/concept/keyart-golden.png. Do nothing else.
+
+Repaint the attached island image (keep the exact same composition, camera, island layout, objects and soft-toon 3D style, no outlines) at GOLDEN HOUR / sunset: low warm sun from the right, long soft shadows tinted violet-rose, sky graded peach to lilac to soft blue, clouds lit orange-pink below the island, warm amber light in the cottage stained-glass window, first lanterns glowing on the bridge, dandelion-like golden pollen motes drifting, waterfall catching gold sparkles. Mood: nostalgic, magical, Ghibli late afternoon. No text, no UI.

@@ -1,0 +1,3 @@
+Use your image generation tool to create ONE image, then copy the generated PNG to art/concept/keyart-night.png. Do nothing else.
+
+Repaint the attached island image (keep the exact same composition, camera, island layout, objects and soft-toon 3D style, no outlines) at NIGHT: deep blue-violet starry sky with a big soft moon, island lit by cool moonlight with deep indigo shadows, many warm fireflies, bioluminescent flowers glowing cyan and pink, glowing mushrooms near roots, warm windows in the egg cottage, greenhouse glowing softly from inside, lanterns on the bridge, the pond and waterfall shimmering with faint magical light, a faint gold ink magic circle softly glowing on the grass near the witch. Mood: cozy, magical, alive. No text, no UI.

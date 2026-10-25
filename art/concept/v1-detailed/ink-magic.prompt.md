@@ -1,0 +1,4 @@
+Use your image generation tool to create ONE image, then copy the generated PNG to art/concept/ink-magic.png. Do nothing else.
+
+Style sheet for a magic system in a cozy fantasy game. Top-down view of soft-toon 3D lush green grass (no outlines, painterly, like the attached reference) with hand-inked magic circles drawn over it, in the style of Witch Hat Atelier: intricate fine pen linework, concentric circles, runic sigils, botanical and celestial motifs (leaves, water drops, wind spirals, stars), crosshatching and stippling, sepia ink lines with luminous gold-ink glow where the magic activates, small ink splatter, sparkles rising.
+Show 4 different glyph circles of different elements (growth/plant, water, wind, light), one being drawn mid-stroke by a dip pen with glowing ink trail. Contrast: the magic must look hand-drawn and 2D, laid over the soft 3D world. No readable text.

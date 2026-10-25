@@ -1,0 +1,3 @@
+Use your image generation tool to create ONE image, then copy the generated PNG to art/concept/simple-witch.png. Do nothing else.
+
+Low-poly 3D game character model sheet, plain light background: a chibi apprentice witch shown front, three-quarter, side, back. VERY SIMPLE stylized low-poly model (like KayKit or Kenney characters): big round head, dot eyes, oversized indigo pointy wide-brim hat with a cream band, short moss-green cape, cream tunic, brown boots, small brown satchel, holding a simple quill. Flat colours with soft toon shading, no textures, no fine detail. Use the attached sheet only for costume colours and silhouette. No text.

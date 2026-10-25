@@ -1,0 +1,67 @@
+import { Mesh, PlaneGeometry, ShaderMaterial, Vector2 } from "three";
+import { shared } from "../render/toon";
+import type { Mood } from "./daycycle";
+
+/** Screen-space sky: vertical gradient, twinkling stars and a soft moon. Drawn behind everything. */
+export class Sky {
+  readonly mesh: Mesh;
+  private mat: ShaderMaterial;
+
+  constructor() {
+    this.mat = new ShaderMaterial({
+      depthTest: false,
+      depthWrite: false,
+      uniforms: {
+        uTime: shared.uTime,
+        uTop: { value: null },
+        uBottom: { value: null },
+        uStars: { value: 0 },
+        uAspect: { value: 1 },
+        uMoon: { value: new Vector2(0.8, 0.82) },
+      },
+      vertexShader: /* glsl */ `
+        varying vec2 vUv;
+        void main() {
+          vUv = uv;
+          gl_Position = vec4( position.xy, 1.0, 1.0 );
+        }`,
+      fragmentShader: /* glsl */ `
+        uniform float uTime;
+        uniform vec3 uTop;
+        uniform vec3 uBottom;
+        uniform float uStars;
+        uniform float uAspect;
+        uniform vec2 uMoon;
+        varying vec2 vUv;
+        float hash( vec2 p ) { return fract( sin( dot( p, vec2( 127.1, 311.7 ) ) ) * 43758.5453 ); }
+        void main() {
+          vec3 c = mix( uBottom, uTop, smoothstep( 0.0, 1.0, vUv.y ) );
+          vec2 p = vec2( vUv.x * uAspect, vUv.y );
+          vec2 cell = floor( p * 70.0 );
+          float h = hash( cell );
+          vec2 f = fract( p * 70.0 ) - 0.5;
+          float star = step( 0.985, h ) * smoothstep( 0.22, 0.0, length( f ) );
+          star *= 0.6 + 0.4 * sin( uTime * ( 1.0 + h * 3.0 ) + h * 40.0 );
+          c += star * uStars * smoothstep( 0.25, 0.7, vUv.y ) * vec3( 1.0, 0.95, 0.8 );
+          vec2 m = vec2( ( vUv.x - uMoon.x ) * uAspect, vUv.y - uMoon.y );
+          float d = length( m );
+          float disc = smoothstep( 0.052, 0.047, d );
+          float halo = smoothstep( 0.2, 0.0, d ) * 0.25;
+          c = mix( c, vec3( 0.95, 0.93, 1.0 ), disc * uStars );
+          c += halo * uStars * vec3( 0.6, 0.65, 1.0 );
+          gl_FragColor = vec4( c, 1.0 );
+          #include <colorspace_fragment>
+        }`,
+    });
+    this.mesh = new Mesh(new PlaneGeometry(2, 2), this.mat);
+    this.mesh.frustumCulled = false;
+    this.mesh.renderOrder = -1000;
+  }
+
+  update(mood: Mood, aspect: number) {
+    this.mat.uniforms.uTop.value = mood.skyTop;
+    this.mat.uniforms.uBottom.value = mood.skyBottom;
+    this.mat.uniforms.uStars.value = mood.stars;
+    this.mat.uniforms.uAspect.value = aspect;
+  }
+}

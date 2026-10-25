@@ -1,0 +1,4 @@
+Use your image generation tool to create ONE image, then copy the generated PNG to art/concept/witch-turnaround.png. Do nothing else.
+
+Character turnaround sheet for a cozy fantasy game, plain soft cream background. A chibi apprentice witch (about 2.5 heads tall), shown FRONT, THREE-QUARTER, SIDE and BACK views in a row, plus a small walking pose.
+Design: oversized wide-brim pointy hat (deep indigo with a sash, a tiny charm and a feather), short hooded cape in moss green with gold-ink embroidered glyph trim, simple tunic, satchel with ink bottles and rolled parchment, holding a long quill/dip-pen as her tool, short boots. Inspired by the costume design of Witch Hat Atelier but rendered as a stylized soft-toon 3D game character: rounded chunky shapes, no outlines, soft shading, palette matching a lush green fantasy world (indigo, moss, cream, warm brown, gold accents). Friendly, curious expression. No text labels.

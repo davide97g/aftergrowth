@@ -1,0 +1,28 @@
+{
+  "name": "apocalipse-farmers",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Cozy farming and hand-drawn ink magic on floating sky-islands, with portals to other witches' islands.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "start": "node server/index.ts",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test tests/*.test.ts",
+    "check": "tsc --noEmit && node --test tests/*.test.ts",
+    "assets": "blender -b -P tools/blender/build_props.py && blender -b -P tools/blender/build_chibi.py && blender -b -P tools/blender/build_furniture.py"
+  },
+  "dependencies": {
+    "three": "^0.186.1",
+    "ws": "^8.22.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "@types/three": "^0.186.0",
+    "@types/ws": "^8.18.2",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.5"
+  }
+}

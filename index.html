@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+    <title>Apocalipse Farmers</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=Alegreya:wght@400;600&display=swap"
+    />
+    <link rel="stylesheet" href="/src/ui/style.css" />
+  </head>
+  <body>
+    <canvas id="game"></canvas>
+    <canvas id="ink" hidden></canvas>
+    <div id="labels"></div>
+    <div id="hud">
+      <div class="title">Apocalipse Farmers</div>
+      <div class="clock">
+        <button id="clock-toggle" type="button" aria-expanded="false"><span id="clock-icon"></span><span id="clock-time">09:00</span><span id="clock-weather"></span></button>
+        <div id="clock-panel" hidden>
+          <label for="time-slider">Time of day</label>
+          <input id="time-slider" type="range" min="0" max="24" step="0.05" value="9" />
+          <div class="speeds" role="group" aria-label="Time speed">
+            <button type="button" data-speed="0">Pause</button>
+            <button type="button" data-speed="1" aria-pressed="true">1×</button>
+            <button type="button" data-speed="20">20×</button>
+            <button type="button" data-speed="120">120×</button>
+          </div>
+          <button id="reset-save" type="button">Start over</button>
+        </div>
+      </div>
+      <div id="hint">WASD or click to walk · F to use · E to draw a glyph · G grimoire</div>
+      <div id="draw-hint">Draw a sigil, then close a circle around it · dots make it stronger · a line points it · Backspace erases · Esc puts the pen away</div>
+      <div id="toast" role="status" hidden></div>
+      <button id="prompt" type="button" hidden><kbd>F</kbd><span id="prompt-label"></span></button>
+      <div id="inventory">
+        <div class="row">
+          <span class="ink" title="Ink"><svg width="18" height="24" viewBox="0 0 18 24" aria-hidden="true"><rect id="ink-level" x="3" y="6" width="12" height="15" rx="2" fill="#4a3f8f"/><path d="M6 2h6v3l3 3v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8l3-3Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg><span id="ink-count"></span></span>
+          <span class="coin" title="Coins"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><circle cx="9" cy="9" r="7" fill="#e8b84a" stroke="currentColor" stroke-width="1.4"/><circle cx="9" cy="9" r="3.5" fill="none" stroke="currentColor" stroke-width="1"/></svg><span id="coins"></span></span>
+          <span class="can" title="Watering can"><svg width="22" height="18" viewBox="0 0 22 18" aria-hidden="true"><path d="M4 6h9v9a1.5 1.5 0 0 1-1.5 1.5h-6A1.5 1.5 0 0 1 4 15Z M13 9l6-5 1.5 1.2L14 12" fill="#7fa6b8" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M6 6a2.5 2.5 0 0 1 5 0" fill="none" stroke="currentColor" stroke-width="1.3"/></svg><span id="can-count"></span></span>
+          <span id="pouch"></span>
+        </div>
+        <div id="seeds" class="row" role="group" aria-label="Seeds to plant"></div>
+      </div>
+      <div id="pop" hidden></div>
+      <aside id="editor" hidden aria-label="Island editor"></aside>
+      <aside id="atlas" hidden aria-label="Portal atlas">
+        <header><h2>Portal</h2><button id="atlas-close" type="button" aria-label="Close portal">×</button></header>
+        <div id="atlas-body"></div>
+      </aside>
+      <aside id="market" hidden aria-label="Market crate">
+        <header><h2>Market crate</h2><button id="market-close" type="button" aria-label="Close market">×</button></header>
+        <div id="market-body"></div>
+      </aside>
+      <div class="actions">
+        <div class="say-wrap">
+          <div id="say-menu" hidden></div>
+          <button id="btn-say" type="button" title="Say something (T)"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5h16v10H10l-4.5 3.5v-3.5H4Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg><span>Say</span><kbd>T</kbd></button>
+        </div>
+        <button id="btn-edit" type="button" title="Edit island (B)" hidden><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17c3-1 4-4 9-4s6 3 9 4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M7 13l2-6 2 5M13 12l3-7 3 8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg><span>Edit</span><kbd>B</kbd></button>
+        <button id="btn-grimoire" type="button" title="Grimoire (G)"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4.5h9.5a3 3 0 0 1 3 3v12H8a3 3 0 0 1-3-3Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M5 16.5a3 3 0 0 1 3-3h9.5" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="11.5" cy="8.5" r="2" fill="none" stroke="currentColor" stroke-width="1.3"/></svg><span>Grimoire</span><kbd>G</kbd></button>
+        <button id="btn-draw" type="button" aria-pressed="false" title="Draw a glyph (E)"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20c2-1 3.5-1.2 5-2.6L19.5 7a2.1 2.1 0 0 0-3-3L6 14.5C4.6 16 4.6 17.8 4 20Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M14.5 6l3 3" stroke="currentColor" stroke-width="1.6"/></svg><span>Draw</span><kbd>E</kbd></button>
+      </div>
+      <aside id="grimoire" hidden aria-label="Grimoire">
+        <header><h2>Grimoire</h2><button id="grimoire-close" type="button" aria-label="Close grimoire">×</button></header>
+        <div id="grimoire-body"></div>
+      </aside>
+      <div id="stick" hidden><div id="stick-knob"></div></div>
+      <div id="fade"></div>
+      <div id="loading">Gathering the island…</div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

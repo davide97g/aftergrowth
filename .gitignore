@@ -1,0 +1,8 @@
+node_modules/
+dist/
+assets/raw/
+assets/build/
+.DS_Store
+data/
+__pycache__/
+*.pyc
