@@ -85,7 +85,7 @@ export async function startGame() {
   // ---------- systems ----------
   // what the farm and the stones show: your save at home, the host's snapshot on a visit
   const view: Save = commons ? { ...state, plots: [] } : host
-    ? { ...state, plots: host.plots.map((p) => ({ crop: (p.crop as CropId | null) ?? null, growth: p.growth, wet: p.wet })) }
+    ? { ...state, plots: host.plots.map((p) => ({ crop: (p.crop as CropId | null) ?? null, growth: p.growth, wet: p.wet, locked: !!p.locked })) }
     : state;
   const stones: (Inscription | null)[] = host ? host.stones.map((s) => (s ? { ...s, spell: s.spell as Inscription["spell"], cooldown: 0 } : null)) : state.stones;
   if (host) host.plots = view.plots;
@@ -140,6 +140,8 @@ export async function startGame() {
     world, rig, canvas,
     canEdit: mine,
     blocked: () => cottage.inside || magic.drawing,
+    wallet: state,
+    before: structuredClone(layout),
     save: () => {
       state.island = world.layout;
       persist();

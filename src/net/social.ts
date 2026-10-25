@@ -69,7 +69,7 @@ export class Social {
     net.on("island", (m) => {
       // the owner changed something while we visit: refresh plots and carvings in place
       if (!m.island || !this.host || m.island.id !== this.host.id) return;
-      m.island.plots.forEach((p, i) => Object.assign(this.host!.plots[i] ?? {}, p));
+      m.island.plots.forEach((p, i) => Object.assign(this.host!.plots[i] ?? {}, p, { locked: !!p.locked }));
     });
     net.on("deed", (m) => this.applyDeeds([m.deed], true));
     net.on("welcome", (m) => this.applyDeeds(m.deeds, false));
@@ -151,7 +151,7 @@ export class Social {
   private snapshot(): IslandSnap {
     return {
       id: this.me.id, name: this.me.name, color: this.me.color, theme: this.me.theme,
-      plots: this.state.plots.map((p) => ({ crop: p.crop, growth: Math.round(p.growth * 100) / 100, wet: Math.round(p.wet * 100) / 100 })),
+      plots: this.state.plots.map((p) => ({ crop: p.crop, growth: Math.round(p.growth * 100) / 100, wet: Math.round(p.wet * 100) / 100, ...(p.locked ? { locked: true } : {}) })),
       stones: this.state.stones.map((s) => (s ? { spell: s.spell, power: s.power, strokes: s.strokes } : null)),
       layout: this.state.island,
       updated: Date.now(),
@@ -161,7 +161,7 @@ export class Social {
   private publish(force = false) {
     if (this.visiting || !this.net.online) return;
     const snap = this.snapshot();
-    const key = JSON.stringify([snap.plots.map((p) => [p.crop, Math.floor(p.growth), p.wet > 0]), snap.stones.map((s) => s?.spell), snap.theme, snap.name, snap.layout]);
+    const key = JSON.stringify([snap.plots.map((p) => [p.crop, Math.floor(p.growth), p.wet > 0, !!p.locked]), snap.stones.map((s) => s?.spell), snap.theme, snap.name, snap.layout]);
     if (!force && key === this.lastPublished) return;
     this.lastPublished = key;
     this.net.send({ t: "publish", island: snap });

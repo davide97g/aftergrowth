@@ -1,4 +1,4 @@
-import { CANS, CROPS, CROP_IDS, type CropId, INK_MAX, type Save } from "../game/state";
+import { CANS, CROPS, CROP_IDS, type CropId, type Save, inkMax } from "../game/state";
 import { formatHour } from "../world/daycycle";
 
 const SUN = `<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="3.6" fill="#E8A92A" stroke="#2A2230" stroke-width="1.2"/><g stroke="#2A2230" stroke-width="1.2" stroke-linecap="round"><path d="M8 1v1.6M8 13.4V15M1 8h1.6M13.4 8H15M3 3l1.1 1.1M11.9 11.9 13 13M3 13l1.1-1.1M11.9 4.1 13 3"/></g></svg>`;
@@ -71,13 +71,13 @@ export class Hud {
 
   /** Ink bottle, coins, seeds (selectable), harvest and flowers. */
   inventory(s: Save) {
-    const key = JSON.stringify([s.ink, s.coins, s.seeds, s.harvest, s.flowers, s.selected, s.can, s.goods]);
+    const key = JSON.stringify([s.ink, s.bottle, s.coins, s.seeds, s.harvest, s.flowers, s.selected, s.can, s.goods]);
     if (key === this.invKey) return;
     this.invKey = key;
-    const fill = s.ink / INK_MAX;
+    const fill = s.ink / inkMax(s);
     document.getElementById("ink-level")!.setAttribute("y", String(6 + 15 * (1 - fill)));
     document.getElementById("ink-level")!.setAttribute("height", String(15 * fill));
-    document.getElementById("ink-count")!.textContent = `${s.ink}/${INK_MAX}`;
+    document.getElementById("ink-count")!.textContent = `${s.ink}/${inkMax(s)}`;
     document.getElementById("coins")!.textContent = String(s.coins);
     document.getElementById("can-count")!.textContent = `${s.can.water}/${CANS[s.can.level].holds}`;
     const seeds = document.getElementById("seeds")!;

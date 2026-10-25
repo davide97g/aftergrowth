@@ -1,11 +1,12 @@
 import type { CameraRig } from "../core/camera";
+import { quote } from "../island/costs";
 import { IslandEditor } from "../island/editor";
-import { screen } from "../island/layout";
+import { type IslandLayout, screen } from "../island/layout";
 import type { IslandWorld } from "../world/world";
 
 /**
- * The B key / Edit button on your own island. Done saves the layout and reloads the page so every
- * system rebuilds from it; Discard just reloads.
+ * The B key / Edit button on your own island. Done pays for the edit, saves the layout and reloads
+ * the page so every system rebuilds from it; Discard just reloads.
  */
 export function setupEditor(o: {
   world: IslandWorld;
@@ -14,9 +15,15 @@ export function setupEditor(o: {
   canEdit: boolean;
   /** true when something else has the screen (drawing, indoors) */
   blocked: () => boolean;
+  /** the coins, shed and paid-for land the edit is charged to */
+  wallet: { coins: number; shed: Record<string, number>; land: number };
+  /** the layout as it was before editing */
+  before: IslandLayout;
   save: () => void;
 }): IslandEditor {
   const editor = new IslandEditor(o.world, o.rig.camera, o.canvas);
+  editor.quote = () => quote(o.before, o.world.layout, o.wallet);
+  editor.coins = () => o.wallet.coins;
   const button = document.getElementById("btn-edit")!;
   button.hidden = !o.canEdit;
   const open = () => {
@@ -32,7 +39,13 @@ export function setupEditor(o: {
     const loading = document.getElementById("loading")!;
     loading.textContent = keep ? "Settling your island…" : "Putting things back…";
     loading.classList.remove("done");
-    if (keep) o.save();
+    if (keep) {
+      const q = quote(o.before, o.world.layout, o.wallet);
+      o.wallet.coins -= q.cost;
+      o.wallet.shed = q.shed;
+      o.wallet.land = q.land;
+      o.save();
+    }
     setTimeout(() => location.reload(), 300);
   };
   editor.onDone = () => leave(true);

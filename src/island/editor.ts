@@ -18,6 +18,7 @@ import {
   footprint,
   newId,
 } from "./layout";
+import { PRICES, type Quote } from "./costs";
 import { SHAPES, SHAPE_IDS, type ShapeId, clampInside, outline, radii } from "./shapes";
 
 const CATEGORIES: { id: Category; label: string }[] = [
@@ -37,7 +38,8 @@ function shapeSvg(shape: ShapeId) {
 
 /**
  * Edit mode for your own island: reshape it, resize it, change what hangs below, and place, move,
- * turn, scale or remove objects. Changes are unlimited for now; "Done" saves and rebuilds.
+ * turn, scale or remove objects. New things and new land cost coins (see costs.ts); "Done" pays,
+ * saves and rebuilds.
  */
 export class IslandEditor {
   private panel = document.getElementById("editor")!;
@@ -53,6 +55,9 @@ export class IslandEditor {
   readonly focus = new Vector3();
   active = false;
   onDone: (layout: IslandLayout) => void = () => {};
+  /** what the edit so far costs, and the coins there are to pay for it */
+  quote: () => Quote = () => ({ cost: 0, land: 0, shed: {} });
+  coins: () => number = () => 0;
   onDiscard: () => void = () => {};
 
   constructor(private world: IslandWorld, private camera: Camera, private canvas: HTMLCanvasElement) {
@@ -198,6 +203,7 @@ export class IslandEditor {
     this.world.removeObject(p.id);
     this.select(null);
     this.changed(false);
+    this.render();
   }
 
   private async add(kind: Kind) {
@@ -207,11 +213,13 @@ export class IslandEditor {
     await this.world.addObject(p);
     this.select(p);
     this.changed(false);
+    this.render();
   }
 
   /** Rebuild what depends on the change, a moment after the last edit. */
   private changed(terrain: boolean) {
     this.world.refresh();
+    this.renderBill();
     if (this.pending) clearTimeout(this.pending);
     this.pending = setTimeout(() => void this.rebuild(terrain), 200);
   }
@@ -268,7 +276,7 @@ export class IslandEditor {
     else if (d.act === "smaller") this.resize(-1);
     else if (d.act === "bigger") this.resize(1);
     else if (d.act === "delete") this.remove();
-    else if (d.act === "done") this.onDone(this.layout);
+    else if (d.act === "done" && this.quote().cost <= this.coins()) this.onDone(this.layout);
     else if (d.act === "discard") this.onDiscard();
   }
 
@@ -278,6 +286,7 @@ export class IslandEditor {
     const size = Number(t.value);
     document.getElementById("edit-size-value")!.textContent = `${size.toFixed(2)}×`;
     void this.reshape({ size });
+    this.renderBill();
   }
 
   private render() {
@@ -302,19 +311,35 @@ export class IslandEditor {
         const d: KindDef = KINDS[k];
         return d.cat === this.category && !d.essential;
       });
+      const shed = this.quote().shed;
       body = `
         <div class="chips">${CATEGORIES.map((c) => `<button type="button" data-cat="${c.id}" aria-pressed="${this.category === c.id}">${c.label}</button>`).join("")}</div>
-        <div class="catalog">${kinds.map((k) => `<button type="button" data-add="${k}">${KINDS[k].label}</button>`).join("")}</div>
-        <p class="note">New things appear in the middle of the view. Drag them where you like.</p>`;
+        <div class="catalog">${kinds.map((k) => `<button type="button" data-add="${k}">${KINDS[k].label}<small>${shed[k] ? `${shed[k]} in shed` : `${PRICES[k]}c`}</small></button>`).join("")}</div>
+        <p class="note">New things appear in the middle of the view. Drag them where you like. Removed things wait in your shed and come back free.</p>`;
     }
     this.panel.innerHTML = `
       <header><h2>Edit island</h2></header>
       ${tabs}
       <div class="body">${body}</div>
       <div id="edit-selection"></div>
-      <p class="note">Drag to move · Q/E turn · −/+ size · Del remove · WASD pans the view. Changes are free for now.</p>
-      <div class="end"><button type="button" data-act="discard">Discard</button><button type="button" class="primary" data-act="done">Done</button></div>`;
+      <p class="note">Drag to move · Q/E turn · −/+ size · Del remove · WASD pans the view. Moving and reshaping are free; a bigger island costs coins.</p>
+      <div class="foot">
+        <p id="edit-bill"></p>
+        <div class="end"><button type="button" data-act="discard">Discard</button><button type="button" class="primary" data-act="done">Done</button></div>
+      </div>`;
     this.renderSelection();
+    this.renderBill();
+  }
+
+  /** The running total of the edit, and whether there are coins enough to keep it. */
+  private renderBill() {
+    const el = document.getElementById("edit-bill");
+    if (!el) return;
+    const { cost } = this.quote();
+    const coins = this.coins();
+    el.textContent = cost ? `Costs ${cost}c · you have ${coins}c` : `Free · you have ${coins}c`;
+    el.classList.toggle("short", cost > coins);
+    (this.panel.querySelector("[data-act=done]") as HTMLButtonElement).disabled = cost > coins;
   }
 
   private renderSelection() {

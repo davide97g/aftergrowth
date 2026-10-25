@@ -5,7 +5,7 @@ export const HUB_ID = "commons";
 
 export interface Profile { id: string; name: string; color: string }
 
-export interface PlotSnap { crop: string | null; growth: number; wet: number }
+export interface PlotSnap { crop: string | null; growth: number; wet: number; locked?: boolean }
 export interface StoneSnap { spell: string; power: number; strokes: { x: number; y: number }[][] }
 
 /** What a visitor needs to see someone's island. Published by the owner, kept by the server. */

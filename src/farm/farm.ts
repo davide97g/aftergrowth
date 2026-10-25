@@ -1,7 +1,7 @@
 import { CircleGeometry, Group, Mesh, MeshBasicMaterial, Object3D, Scene, Vector3 } from "three";
 import { prop } from "../core/assets";
 import type { Action } from "../game/interact";
-import { CANS, CROPS, CROP_IDS, type CropId, type Plot, type Save } from "../game/state";
+import { CANS, CROPS, CROP_IDS, type CropId, type Plot, type Save, clearPrice } from "../game/state";
 
 const ROW = 4;
 
@@ -9,9 +9,10 @@ const ROW = 4;
 export const WET_HOURS = 10;
 const REACH = 1.1;
 
-type Stage = "empty" | "seed" | "sprout" | "young" | "ready";
+type Stage = "weeds" | "empty" | "seed" | "sprout" | "young" | "ready";
 
 function stageOf(p: Plot): Stage {
+  if (p.locked) return "weeds";
   if (!p.crop) return "empty";
   const k = p.growth / CROPS[p.crop].hours;
   if (k >= 0.999) return "ready"; // float drift must not leave a crop at 99%
@@ -41,6 +42,14 @@ export class Farm {
       if (m.isMesh) m.scale.set(0.55, 0.35, 0.55);
     });
     farm.models.seed = mound;
+    const weeds = new Group();
+    for (const [name, x, z, k] of [["grass_tuft_large", 0, 0, 1.1], ["grass_tuft", 0.28, 0.12, 1], ["grass_tuft", -0.24, -0.16, 0.9], ["bush", 0.1, -0.3, 0.45]] as const) {
+      const m = await prop(name);
+      m.position.set(x, 0, z);
+      m.scale.setScalar(k);
+      weeds.add(m);
+    }
+    farm.models.weeds = weeds;
     const wetGeo = new CircleGeometry(0.62, 18);
     wetGeo.rotateX(-Math.PI / 2);
     wetGeo.scale(1, 1, 0.55);
@@ -75,7 +84,7 @@ export class Farm {
     (v.wet.material as MeshBasicMaterial).opacity = Math.min(p.wet / 2, 1) * 0.35;
     if (stage !== v.stage || p.crop !== v.crop) {
       for (const c of [...v.root.children]) if (c !== v.wet) v.root.remove(c);
-      const name = stage === "empty" ? null : stage === "seed" ? "seed" : stage === "sprout" ? "sprout_a" : stage === "young" ? "sprout_b" : CROPS[p.crop!].model;
+      const name = stage === "empty" ? null : stage === "weeds" ? "weeds" : stage === "seed" ? "seed" : stage === "sprout" ? "sprout_a" : stage === "young" ? "sprout_b" : CROPS[p.crop!].model;
       if (name) {
         const m = this.models[name].clone();
         m.rotation.y = i * 1.3;
@@ -114,6 +123,7 @@ export class Farm {
     const stage = stageOf(p);
     if (this.visit) {
       const owner = this.visit.owner;
+      if (stage === "weeds") return { pos, reach: REACH, label: `${owner}'s overgrown plot`, act: null };
       if (!p.crop) return { pos, reach: REACH, label: `${owner}'s empty plot`, act: null };
       const name = CROPS[p.crop].name.toLowerCase();
       const pct = Math.min(100, Math.floor((p.growth / CROPS[p.crop].hours) * 100));
@@ -124,6 +134,18 @@ export class Farm {
         act: () => {
           this.visit!.water(this.pour(i));
           this.onChange(`Watered ${owner}'s ${name}`);
+        },
+      };
+    }
+    if (stage === "weeds") {
+      const price = clearPrice(st);
+      if (st.coins < price) return { pos, reach: REACH, label: `Overgrown plot · ${price}c to clear (you have ${st.coins})`, act: null };
+      return {
+        pos, reach: REACH, label: `Clear the weeds · ${price}c`,
+        act: () => {
+          st.coins -= price;
+          p.locked = false;
+          this.onChange("Plot cleared");
         },
       };
     }

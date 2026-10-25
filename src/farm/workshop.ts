@@ -1,6 +1,6 @@
 import { AdditiveBlending, Color, IcosahedronGeometry, Mesh, MeshBasicMaterial, Scene, Vector3 } from "three";
 import type { Action } from "../game/interact";
-import { BREW, CANS, CROPS, CROP_IDS, type CropId, INK_MAX, type Save, takeFlowers, totalFlowers } from "../game/state";
+import { BOTTLES, BREW_FLOWERS, CANS, CAULDRONS, CROPS, CROP_IDS, type CropId, type Save, brewInk, inkMax, takeFlowers, totalFlowers } from "../game/state";
 import { type Pt } from "../world/walkmask";
 import { HONEY_PRICE } from "./garden";
 
@@ -39,15 +39,16 @@ export class Workshop {
     const pos = this.spots.cauldron;
     if (Math.hypot(pos.x - near.x, pos.z - near.z) > 1.6) return null;
     const s = this.state;
-    if (s.ink >= INK_MAX) return { pos, reach: 1.6, label: "Ink bottle is full", act: null };
-    if (totalFlowers(s) < BREW.flowers) return { pos, reach: 1.6, label: `Cauldron · needs ${BREW.flowers} flowers (you have ${totalFlowers(s)})`, act: null };
+    if (s.ink >= inkMax(s)) return { pos, reach: 1.6, label: `${BOTTLES[s.bottle].name} is full`, act: null };
+    if (totalFlowers(s) < BREW_FLOWERS) return { pos, reach: 1.6, label: `Cauldron · needs ${BREW_FLOWERS} flowers (you have ${totalFlowers(s)})`, act: null };
+    const drops = brewInk(s);
     return {
-      pos, reach: 1.6, label: `Brew ink · ${BREW.flowers} flowers → ${BREW.ink} drops`,
+      pos, reach: 1.6, label: `Brew ink · ${BREW_FLOWERS} flowers → ${drops} drops`,
       act: () => {
-        takeFlowers(s, BREW.flowers);
-        s.ink = Math.min(INK_MAX, s.ink + BREW.ink);
+        takeFlowers(s, BREW_FLOWERS);
+        s.ink = Math.min(inkMax(s), s.ink + drops);
         this.brewFlash = 1.2;
-        this.onChange(`+${BREW.ink} ink`);
+        this.onChange(`+${drops} ink`);
       },
     };
   };
@@ -108,13 +109,12 @@ export class Workshop {
       s.coins += n * CROPS[crop].sellPrice;
       s.harvest[crop] = 0;
       this.onChange(`+${n * CROPS[crop].sellPrice} coins`);
-    } else if (btn.dataset.act === "can") {
-      const next = CANS[s.can.level + 1];
-      if (!next || s.coins < next.price) return;
-      s.coins -= next.price;
-      s.can.level++;
-      s.can.water = next.holds;
-      this.onChange(`${next.name}!`);
+    } else if (btn.dataset.act === "upgrade") {
+      const u = upgrades(s).find((x) => x.id === btn.dataset.id);
+      if (!u?.next || s.coins < u.next.price) return;
+      s.coins -= u.next.price;
+      u.buy();
+      this.onChange(`${u.next.name}!`);
     } else if (btn.dataset.act === "buy") {
       const n = Number(btn.dataset.n);
       const cost = n * CROPS[crop].seedPrice;
@@ -144,12 +144,28 @@ export class Workshop {
           <tr><th scope="row">Honey<small>from your beehives</small></th><td>${s.goods?.honey ?? 0} <button data-act="honey" ${s.goods?.honey ? "" : "disabled"}>Sell · ${HONEY_PRICE}c each</button></td><td></td></tr>
         </tbody>
       </table></div>
-      ${(() => {
-        const next = CANS[s.can.level + 1];
-        return next
-          ? `<p class="upgrade"><span><strong>${next.name}</strong> holds ${next.holds} pours and waters ${next.reach} plots in a row.</span><button data-act="can" ${s.coins >= next.price ? "" : "disabled"}>Buy · ${next.price}c</button></p>`
-          : `<p class="upgrade"><span>Your <strong>${CANS[s.can.level].name}</strong> is the best there is.</span></p>`;
-      })()}
-      <p class="note">Crops grow only while their soil is wet. Rain magic counts. Fill the can at the pond.</p>`;
+      <h3>Upgrades</h3>
+      ${upgrades(s).map((u) => u.next
+        ? `<p class="upgrade"><span><strong>${u.next.name}</strong> ${u.blurb}</span><button data-act="upgrade" data-id="${u.id}" ${s.coins >= u.next.price ? "" : "disabled"}>Buy · ${u.next.price}c</button></p>`
+        : `<p class="upgrade"><span>Your <strong>${u.now}</strong> is the best there is.</span></p>`).join("")}
+      <p class="note">Crops grow only while their soil is wet. Rain magic counts. Fill the can at the pond. Overgrown plots can be cleared for coins.</p>`;
   }
+}
+
+/** What the market sells besides seeds: the next level of each tool, if there is one. */
+function upgrades(s: Save) {
+  const can = CANS[s.can.level + 1];
+  const bottle = BOTTLES[s.bottle + 1];
+  const cauldron = CAULDRONS[s.cauldron + 1];
+  return [
+    {
+      id: "can", now: CANS[s.can.level].name, next: can, blurb: can ? `holds ${can.holds} pours and waters ${can.reach} plots in a row.` : "",
+      buy: () => {
+        s.can.level++;
+        s.can.water = CANS[s.can.level].holds;
+      },
+    },
+    { id: "bottle", now: BOTTLES[s.bottle].name, next: bottle, blurb: bottle ? `holds ${bottle.holds} drops of ink.` : "", buy: () => s.bottle++ },
+    { id: "cauldron", now: CAULDRONS[s.cauldron].name, next: cauldron, blurb: cauldron ? `brews ${BREW_FLOWERS} flowers into ${cauldron.ink} drops.` : "", buy: () => s.cauldron++ },
+  ];
 }

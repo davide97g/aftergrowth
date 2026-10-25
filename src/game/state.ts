@@ -25,15 +25,37 @@ export const CROPS: Record<CropId, CropDef> = {
 };
 export const CROP_IDS = Object.keys(CROPS) as CropId[];
 
-export const INK_MAX = 12;
 /** Watering can levels: how much it holds and how many plots in a row one pour reaches. */
 export const CANS = [
   { name: "Tin can", holds: 6, reach: 1, price: 0 },
   { name: "Copper can", holds: 12, reach: 3, price: 60 },
 ] as const;
+/** Ink bottle levels: drops it holds. */
+export const BOTTLES = [
+  { name: "Ink pot", holds: 12, price: 0 },
+  { name: "Glass flask", holds: 20, price: 50 },
+  { name: "Crystal decanter", holds: 30, price: 140 },
+] as const;
+/** Cauldron levels: drops of ink one brew makes. */
+export const CAULDRONS = [
+  { name: "Iron cauldron", ink: 3, price: 0 },
+  { name: "Copper cauldron", ink: 4, price: 80 },
+  { name: "Moon cauldron", ink: 5, price: 200 },
+] as const;
 
-/** two flowers brew into three drops of ink */
-export const BREW = { flowers: 2, ink: 3 };
+/** flowers one brew takes */
+export const BREW_FLOWERS = 2;
+/** plots open on a new island; the rest are overgrown until cleared */
+export const OPEN_PLOTS = 6;
+/** price of clearing the next overgrown plot, by how many are open already */
+const CLEAR_PRICES = [20, 30, 45, 60, 80, 100];
+
+export const inkMax = (s: Save) => BOTTLES[s.bottle].holds;
+export const brewInk = (s: Save) => CAULDRONS[s.cauldron].ink;
+export function clearPrice(s: Save) {
+  const open = s.plots.filter((p) => !p.locked).length;
+  return CLEAR_PRICES[Math.max(0, Math.min(open - OPEN_PLOTS, CLEAR_PRICES.length - 1))];
+}
 
 export interface Plot {
   crop: CropId | null;
@@ -41,6 +63,8 @@ export interface Plot {
   growth: number;
   /** game hours the soil stays wet */
   wet: number;
+  /** overgrown: clear it (for coins) before planting */
+  locked?: boolean;
 }
 
 export interface Inscription {
@@ -66,6 +90,13 @@ export interface Save {
   /** gifts other witches left while you were away */
   mailbox?: Gift[];
   can: { level: number; water: number };
+  /** ink bottle and cauldron levels (BOTTLES, CAULDRONS) */
+  bottle: number;
+  cauldron: number;
+  /** objects taken off the island, ready to place again for free */
+  shed: Record<string, number>;
+  /** largest island size paid for; growing beyond it costs coins */
+  land: number;
   /** in-game day number, for the weather */
   day: number;
   /** things that aren't crops: honey for now */
@@ -89,10 +120,14 @@ export function newGame(plots: number, stones: number): Save {
     seeds: { wheat: 2, turnip: 4, carrot: 0, corn: 0, pumpkin: 0, melon: 0 },
     harvest: { wheat: 0, turnip: 0, carrot: 0, corn: 0, pumpkin: 0, melon: 0 },
     can: { level: 0, water: CANS[0].holds },
+    bottle: 0,
+    cauldron: 0,
+    shed: {},
+    land: 1,
     day: 1,
     flowers: { pink: 0, yellow: 0, blue: 0, white: 0 },
     selected: "turnip",
-    plots: Array.from({ length: plots }, () => ({ crop: null, growth: 0, wet: 0 })),
+    plots: Array.from({ length: plots }, (_, i) => ({ crop: null, growth: 0, wet: 0, locked: i >= OPEN_PLOTS })),
     stones: Array.from({ length: stones }, () => null),
   };
 }
@@ -109,6 +144,11 @@ export function load(plots: number, stones: number): Save {
           s.harvest[c] ??= 0;
         }
         s.can ??= { level: 0, water: CANS[0].holds };
+        // saves from before upgrades and editor costs keep everything they had
+        s.bottle = Math.min(Math.max(s.bottle ?? 0, 0), BOTTLES.length - 1);
+        s.cauldron = Math.min(Math.max(s.cauldron ?? 0, 0), CAULDRONS.length - 1);
+        s.shed ??= {};
+        s.land ??= s.island?.size ?? 1;
         s.day ??= 1;
         return s;
       }
