@@ -48,6 +48,14 @@ export class Hud {
     mute.addEventListener("click", () => sound.toggle());
     sound.onMute = showMute;
     showMute(sound.muted);
+    const music = document.getElementById("music-toggle")!;
+    const showMusic = (on: boolean) => {
+      music.textContent = `Music ${on ? "on" : "off"} · N`;
+      music.setAttribute("aria-pressed", String(on));
+    };
+    music.addEventListener("click", () => sound.toggleMusic());
+    sound.onMusic = showMusic;
+    showMusic(sound.music);
     const reset = document.getElementById("reset-save") as HTMLButtonElement;
     reset.addEventListener("click", () => {
       if (reset.dataset.armed) return this.onReset();

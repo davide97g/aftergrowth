@@ -39,6 +39,7 @@ Useful URL parameters while developing: `?t=18` start at 18:00, `?weather=rain` 
 | Zoom | scroll / pinch |
 | Satchel | I |
 | Mute | M (or the clock panel) |
+| Music on/off | N (or the clock panel) |
 | Time of day | clock pill, top right |
 
 ## Where things are
@@ -69,13 +70,14 @@ src/
   house/             cottage interior, music box
   fx/                portal veil and ground circle, tweens
   ui/                HUD, fade, styles
-  audio/             every sound, synthesised with Web Audio
+  audio/             every sound and the theme song, synthesised with Web Audio
 server/              island hub (WebSocket rooms, snapshots, deeds) + production server
 shared/              protocol types, items and daily prices, the colour palette (game, server, Blender)
 tools/blender/       asset builders: props, the chibi witch, furniture; preview tools
 tests/               glyph recognizer, island layout, economy and market tests
 public/assets/       built .glb models (committed; rebuilt by `npm run assets`)
-art/                 concept art (Codex image generation, prompts alongside), reference, screenshots
+art/                 concept art (Codex image generation, prompts alongside), reference, screenshots,
+                     and the theme song (art/music)
 docs/                design and technical docs (below)
 ```
 

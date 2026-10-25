@@ -5,6 +5,7 @@
  *
  * The context starts on the first key or tap (browsers require it). M mutes; the choice is remembered.
  */
+import { scheduleTheme } from "./theme";
 
 export interface Ambience {
   /** 0..1 */
@@ -24,6 +25,7 @@ export interface Ambience {
 type SpellSound = "growth" | "water" | "wind" | "light" | "flame" | "rainbow" | "bloom" | "fireflies" | "steam" | "fizzle";
 
 const KEY = "af.sound";
+const MUSIC_KEY = "af.music";
 const PENTA = [523.3, 587.3, 659.3, 784.0, 880.0, 1046.5, 1174.7, 1318.5];
 const rand = (a: number, b: number) => a + Math.random() * (b - a);
 
@@ -40,10 +42,16 @@ class Sound {
   private amb: Ambience = { wind: 0, rain: 0, day: 1, water: 0, fire: 0, crowd: 0, inside: false };
   muted = false;
   onMute: (muted: boolean) => void = () => {};
+  /** the theme song plays (N toggles it) */
+  music = true;
+  onMusic: (on: boolean) => void = () => {};
+  private musicBus!: GainNode;
+  private song: { gain: GainNode; nextAt: number } | null = null;
 
   constructor() {
     try {
       this.muted = localStorage.getItem(KEY) === "off";
+      this.music = localStorage.getItem(MUSIC_KEY) !== "off";
     } catch {
       // storage blocked: sound on
     }
@@ -57,7 +65,9 @@ class Sound {
     addEventListener("pointerdown", unlock);
     addEventListener("keydown", unlock);
     addEventListener("keydown", (e) => {
-      if (e.code === "KeyM" && (e.target as HTMLElement).tagName !== "INPUT") this.toggle();
+      if ((e.target as HTMLElement).tagName === "INPUT") return;
+      if (e.code === "KeyM") this.toggle();
+      if (e.code === "KeyN") this.toggleMusic();
     });
     document.addEventListener("visibilitychange", () => {
       if (!this.ctx) return;
@@ -77,6 +87,36 @@ class Sound {
     this.onMute(this.muted);
   }
 
+  toggleMusic() {
+    this.music = !this.music;
+    try {
+      localStorage.setItem(MUSIC_KEY, this.music ? "on" : "off");
+    } catch {
+      // not remembered
+    }
+    if (this.ctx) {
+      if (this.music) this.playSong();
+      else this.stopSong();
+    }
+    this.onMusic(this.music);
+  }
+
+  /** Start the theme a moment from now; `update` queues the next play-through as each one ends. */
+  private playSong() {
+    if (this.song || !this.ctx) return;
+    const gain = this.ctx.createGain();
+    gain.connect(this.musicBus);
+    this.song = { gain, nextAt: this.ctx.currentTime + 1.5 };
+  }
+
+  private stopSong() {
+    if (!this.song || !this.ctx) return;
+    const { gain } = this.song;
+    gain.gain.setTargetAtTime(0, this.ctx.currentTime, 0.4);
+    setTimeout(() => gain.disconnect(), 2500);
+    this.song = null;
+  }
+
   private start() {
     if (this.ctx) {
       void this.ctx.resume();
@@ -91,6 +131,9 @@ class Sound {
     this.outside.type = "lowpass";
     this.outside.frequency.value = 18000;
     this.outside.connect(this.master);
+    this.musicBus = ctx.createGain();
+    this.musicBus.gain.value = 0.2;
+    this.musicBus.connect(this.master);
     this.noise = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
     const data = this.noise.getChannelData(0);
     for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
@@ -117,6 +160,7 @@ class Sound {
       pen: bed("bandpass", 3200, 1.4, this.master),
       crowd: bed("bandpass", 520, 1.1),
     };
+    if (this.music) this.playSong();
   }
 
   /** Follow the world: call once per frame. */
@@ -126,6 +170,10 @@ class Sound {
     if (!ctx || !this.beds || ctx.state !== "running") return;
     const t = ctx.currentTime;
     const indoor = amb.inside ? 0.25 : 1;
+    // the theme: queue each play-through shortly before the last one ends (never while the tab sleeps)
+    if (this.song && this.song.nextAt - t < 3) this.song.nextAt += scheduleTheme(ctx, this.song.gain, Math.max(this.song.nextAt, t + 0.1));
+    // softer indoors, where the music box lives
+    this.musicBus.gain.setTargetAtTime(amb.inside ? 0.06 : 0.2, t, 0.8);
     this.outside.frequency.setTargetAtTime(amb.inside ? 650 : 18000, t, 0.3);
     // wind: a breath that swells and wanders in pitch
     this.windFilter += dt * (0.3 + amb.wind);

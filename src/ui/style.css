@@ -245,7 +245,7 @@ body.drawing .actions { bottom: calc(80px + env(safe-area-inset-bottom, 0px)); }
   .actions kbd { display: none; }
 }
 
-#sound-toggle, #reset-save {
+#sound-toggle, #music-toggle, #reset-save {
   justify-self: start;
   font: italic 0.85rem var(--f-body);
   color: var(--ink);

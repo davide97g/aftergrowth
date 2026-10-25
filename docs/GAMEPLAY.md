@@ -198,3 +198,6 @@ Every system and its numbers. Values live in code; the file is named next to eac
 - One-shots: footsteps, the pen scratching while you draw, a bell run when a seal closes (a smudge
   when it fizzles), a sound per spell, pouring and filling the can, pickups, coins, the portal.
 - M or the clock panel mutes; the choice is remembered (`af.sound`).
+- **Theme song** "Seeds on the Wind" (`audio/theme.ts`, score in `art/music/README.md`): a 6/8 waltz
+  that loops softly outdoors and drops to a whisper indoors, where the music box lives. N or the
+  clock panel turns it off (`af.music`).

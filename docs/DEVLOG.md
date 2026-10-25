@@ -187,6 +187,16 @@ multiplayer (live and async); magic drawn with rules, like *Witch Hat Atelier*.
 - Balance: ink never goes on sale. A test checks that charms made from bought ink earn at most a few
   coins over the shop price, except on days the Scriptorium wants that charm.
 
+## 17. The theme song
+
+- "Seeds on the Wind": an original waltz in 6/8, D major, 66 seconds. Flute over kalimba, pad,
+  bass, shaker and bells, with a borrowed C chord in the bridge and a G-minor turn before the end.
+- Written as data in `audio/theme.ts`; `scheduleTheme()` plays into any Web Audio context, so the game
+  loops it live and the same code renders it offline to `art/music/seeds-on-the-wind.mp3`.
+- Mixed by measurement rather than by ear: spectrograms and band levels of the render showed a heavy
+  sub-bass, so the bass lost its sub-octave and the song got a 45 Hz high-pass. In game it sits well
+  under the sound effects.
+
 ## How things were checked
 
 Every step was checked in a headless browser (screenshots, scripted clicks, keyboard and mouse
