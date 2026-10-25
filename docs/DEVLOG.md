@@ -263,6 +263,9 @@ Six pieces, one after another:
   box; bees shuttle between hives and flowers. Footsteps sound like what they land on.
 - **Moods for the witch** (`player/witch.ts`): context-picked fidgets when she stands still (only
   your own witch gets a mood, so keepers and townsfolk stay put), and a leaf umbrella in the rain.
+- **Tea and letters** (`ui/kettle.ts`, `game/post.ts`, `ui/letters.ts`): four teas from the four
+  flower colours, drunk from the satchel; letters seeded by witch and day, with gifts and favours
+  answered the next morning. The post rules are pure and tested.
 
 ## How things were checked
 

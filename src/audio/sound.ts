@@ -403,6 +403,14 @@ class Sound {
     }
   }
 
+  /** A sip of hot tea. */
+  sip() {
+    const t = this.now;
+    if (t === null) return;
+    this.burst(t + 0.75, 0.5, 0.025, "bandpass", 900, 1.5, undefined, 1500);
+    this.tone(520, t + 1.5, 0.02, 0.4, "sine", undefined, 440);
+  }
+
   /** Brushing through leaves and stalks. */
   rustle() {
     const t = this.now;

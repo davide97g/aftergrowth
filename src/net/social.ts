@@ -1,4 +1,5 @@
 import { Camera, Mesh, Object3D, Scene, Vector3 } from "three";
+import { unread } from "../game/post";
 import { type Deed, type Gift, type HatStyle, type IslandSnap, PHRASES, type Pose, type Profile } from "../../shared/protocol";
 import type { Action } from "../game/interact";
 import { ITEMS, isItem } from "../../shared/items";
@@ -236,6 +237,8 @@ export class Social {
     this.mailboxAt = at;
   }
   private mailboxAt: Vector3 | null = null;
+  /** open the letters panel */
+  onLetters: () => void = () => {};
 
   mailbox = (near: Vector3): Action | null => {
     const pos = this.mailboxAt;
@@ -243,17 +246,26 @@ export class Social {
     const s = this.state;
     if (!this.visiting) {
       const mail = s.mailbox ?? [];
-      if (!mail.length) return { pos, reach: 1.4, label: "Mailbox · empty", act: null };
+      const letters = s.post?.letters.length ?? 0;
+      const fresh = unread(s.post);
+      if (!mail.length && !letters) return { pos, reach: 1.4, label: "Mailbox · empty", act: null };
+      const parts = [
+        ...(fresh ? [`${fresh} new ${fresh === 1 ? "letter" : "letters"}`] : []),
+        ...(mail.length ? [`${mail.length} ${mail.length === 1 ? "gift" : "gifts"}`] : []),
+      ];
       return {
-        pos, reach: 1.4, label: `Mailbox · ${mail.length} ${mail.length === 1 ? "gift" : "gifts"}`,
+        pos, reach: 1.4, label: parts.length ? `Mailbox · ${parts.join(" · ")}` : "Mailbox · read your letters",
         act: () => {
-          for (const g of mail) {
-            if (g.kind === "flower") give(s, `flower:${g.color as FlowerColor}`);
-            if (g.kind === "crop") give(s, `crop:${g.crop as CropId}`);
+          if (mail.length) {
+            for (const g of mail) {
+              if (g.kind === "flower") give(s, `flower:${g.color as FlowerColor}`);
+              if (g.kind === "crop") give(s, `crop:${g.crop as CropId}`);
+            }
+            const from = [...new Set(mail.map((g) => g.from))].join(", ");
+            this.hud.toast(`${mail.length} ${mail.length === 1 ? "gift" : "gifts"} collected`, `From ${from}.`);
+            s.mailbox = [];
           }
-          const from = [...new Set(mail.map((g) => g.from))].join(", ");
-          this.hud.toast(`${mail.length} ${mail.length === 1 ? "gift" : "gifts"} collected`, `From ${from}.`);
-          s.mailbox = [];
+          if (letters) this.onLetters();
         },
       };
     }
@@ -315,7 +327,7 @@ export class Social {
       this.publishTimer = 8;
       this.publish();
     }
-    if (this.mailFlag) this.mailFlag.rotation.z = (this.state.mailbox?.length ?? 0) && !this.visiting ? 0 : -1.4;
+    if (this.mailFlag) this.mailFlag.rotation.z = ((this.state.mailbox?.length ?? 0) || unread(this.state.post)) && !this.visiting ? 0 : -1.4;
     const now = performance.now();
     this.place(this.myTag, witch.position, now < this.myBubbleUntil && !stand);
     for (const p of this.peers.values()) {

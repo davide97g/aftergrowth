@@ -12,7 +12,7 @@ import type { IslandWorld } from "../world/world";
 import type { Stage } from "./stage";
 import { type Action, Interactions } from "./interact";
 import type { Rest } from "./rest";
-import type { Save } from "./state";
+import { type Save, inkMax } from "./state";
 
 /** A place indoors: its own scene and floor, and what can be done there. */
 export interface Room {
@@ -62,12 +62,19 @@ export class Cottage {
       owner: string | null;
       catchUp: (hours: number) => void;
       persist: () => void;
+      /** the kettle: open the tea panel */
+      brew: () => void;
     },
   ) {
     this.indoors = new Interactions(deps.rig.camera);
     this.indoors.add(deps.rest.action);
     this.indoors.add((near) => this.room?.action(near) ?? null);
     this.indoors.enabled = false;
+  }
+
+  /** a pot of tea was brewed */
+  steamUp() {
+    this.house.steamUp();
   }
 
   /** the familiar changed: the one asleep indoors too */
@@ -91,6 +98,7 @@ export class Cottage {
       exit: () => self?.leave(),
       sit: deps.rest.sitAt,
       pop: (t) => deps.hud.pop(t),
+      brew: () => deps.brew(),
       familiar: () => deps.state.familiar,
       onPet: () => sound.familiar(deps.state.familiar.kind, "pet"),
     });
@@ -152,8 +160,14 @@ export class Cottage {
     fadeThrough(() => {
       this.deps.catchUp(hours);
       clock.hour = WAKE_HOUR;
+      // chamomile tea before bed: sweet dreams fill the ink bottle
+      const dreamt = !!state.tea?.dreams;
+      if (state.tea?.dreams) {
+        state.ink = Math.max(state.ink, inkMax(state));
+        state.tea.dreams = false;
+      }
       this.deps.persist();
-      hud.toast(`Good morning · day ${state.day}`, "You slept until half past six.");
+      hud.toast(`Good morning · day ${state.day}`, dreamt ? "You slept until half past six, and dreamt in ink: the bottle is full." : "You slept until half past six.");
     });
   }
 

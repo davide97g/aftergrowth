@@ -135,6 +135,31 @@ Every system and its numbers. Values live in code; the file is named next to eac
 - The chimney smokes more in the evening, and the smoke leans with the wind.
 - Night: frogs croak near the pond, an owl hoots now and then.
 
+## Tea (`ui/kettle.ts`, teas in `shared/items.ts`)
+
+- The kettle on the low table in the cottage brews 2 flowers of one colour into 2 cups. Drink a cup
+  from the satchel (I), anywhere: she sips from a steaming cup.
+
+| Tea | Flowers | Does |
+|---|---|---|
+| Rosehip | pink | +3 drops of ink |
+| Sunpetal | yellow | walk and run 20% faster for 3 real minutes (stacks with boots and mead) |
+| Bluebell | blue | the next 3 glyphs cost a drop less (not below 1) |
+| Chamomile | white | tonight's sleep fills the ink bottle |
+
+- Teas can be sold at your market stall; no shop buys them.
+
+## Letters (`game/post.ts`, `ui/letters.ts`)
+
+- Each new day on your own island may bring a letter (about 4 days in 5) from a market or
+  Aetherhold witch: Fern, Odile, Bramble, Rowan, Hazel, Tilly or Ottilie. The mailbox flag goes up.
+  Your first morning brings Hazel's welcome, with two white flowers for chamomile.
+- A letter is news or a hint (combinations, tricks), a small gift to take (seeds, flowers, honey,
+  wood, a charm, tea, coins), or a favour: some crops, flowers or tea by a day three days on.
+  "Post them" from the letter (at your mailbox) sends them; the next morning a thank-you arrives with
+  the reward (about 1.35× what a shop pays, or seeds or charms). Favours left too long are dropped.
+- Letters are the same for the same witch and day; only the newest 30 are kept.
+
 ## The cottage (`game/cottage.ts`, `house/`)
 
 - F at the door goes inside (your own island only).

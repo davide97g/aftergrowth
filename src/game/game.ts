@@ -28,6 +28,10 @@ import { Satchel } from "../ui/satchel";
 import { Birds } from "../world/birds";
 import { FAMILIAR_KINDS, Familiar, type FamiliarKind } from "../world/familiar";
 import { Atmosphere } from "../world/atmosphere";
+import { TEAS, type TeaId } from "../../shared/items";
+import { KettlePanel } from "../ui/kettle";
+import { LettersPanel } from "../ui/letters";
+import { deliver } from "./post";
 import { sampleMood } from "../world/daycycle";
 import { Life } from "../world/life";
 import { Weather } from "../world/weather";
@@ -43,7 +47,7 @@ import { KingdomWorld } from "../kingdom/world";
 import { syncCuts } from "../render/cut";
 import { Rest } from "./rest";
 import { Stage } from "./stage";
-import { BASKETS, BOOTS, CROP_IDS, type CropId, type Inscription, type Save, forgetOldSave, inkMax, load, oldSave, resetSave, save } from "./state";
+import { BASKETS, BOOTS, CROP_IDS, type CropId, type Inscription, type Save, forgetOldSave, inkMax, load, oldSave, resetSave, save, take } from "./state";
 import { PortalTravel } from "./travel";
 
 /** One game day lasts 24 real minutes at 1× speed. */
@@ -176,6 +180,7 @@ export async function startGame(account: Account) {
     shops.render();
     stalls?.render();
     realm?.render();
+    kettle.render();
   };
   shops.onLearn = (s) => magic.learnSigil(s);
   shops.wearing = () => me.hat ?? "classic";
@@ -184,6 +189,32 @@ export async function startGame(account: Account) {
     social.wearHat(h);
   };
   satchel.onUse = (spell) => magic.useCharm(spell);
+  // ---------- tea and letters ----------
+  const kettle = new KettlePanel(state);
+  const letters = new LettersPanel(state);
+  letters.onChange = changed;
+  kettle.onBrew = (tea) => {
+    sound.pour(true);
+    cottage.steamUp();
+    changed(`+2 ${TEAS[tea].name}`);
+  };
+  satchel.onDrink = (tea: TeaId) => {
+    if (!take(state, `tea:${tea}`)) return;
+    const t = (state.tea ??= {});
+    if (tea === "rosehip") state.ink = Math.min(inkMax(state), state.ink + 3);
+    if (tea === "sunpetal") t.sunUntil = Math.max(Date.now(), t.sunUntil ?? 0) + 180_000;
+    if (tea === "bluebell") t.steady = (t.steady ?? 0) + 3;
+    if (tea === "chamomile") t.dreams = true;
+    witch.react("sip");
+    sound.sip();
+    hud.toast(TEAS[tea].name, TEAS[tea].effect);
+    hud.inventory(state);
+  };
+  /** the post comes each morning to your own island */
+  const fetchPost = () => {
+    if (!mine || state.day <= state.post.day) return;
+    if (deliver(state.post, me.id, state.day)) hud.pop("A letter in the mailbox");
+  };
   const workshop = new Workshop(scene, world.spots, state, changed, world.pond, () => shops.open(CRATE));
   const bazaar = market ? await Market.create(scene, world, shops) : null;
   const stalls = market ? new Stalls(net, me, state, world, rig.camera, hud, changed) : null;
@@ -202,6 +233,7 @@ export async function startGame(account: Account) {
   social.onDeeds = () => hud.inventory(state);
   social.onRemoteSpell = (spell, at, power) => magic.remoteCast(spell, at, power);
   social.useMailbox(world.mailbox, world.spots.mailbox);
+  social.onLetters = () => letters.open();
   const weather = new Weather(scene, seedOf(islandId));
   weather.force = (params.get("weather") as typeof weather.force) ?? null;
   weather.onRainbow = () => magic.remoteCast("rainbow", witch.position.clone().add(new Vector3(-2.5, 0, -2.5)), 3);
@@ -235,6 +267,7 @@ export async function startGame(account: Account) {
     {
       stage, world, witch, rig, clock, state, hud, rest, persist,
       owner: visiting ? host!.name : null,
+      brew: () => kettle.open(),
       catchUp: (hours) => {
         farm.update(0, hours);
         flowers.update(hours);
@@ -371,6 +404,7 @@ export async function startGame(account: Account) {
     // time and weather
     const hours = dt * HOURS_PER_SECOND * clock.speed;
     if (clock.hour + hours >= 24) state.day++;
+    fetchPost();
     clock.hour = (clock.hour + hours) % 24;
     const mood = sampleMood(clock.hour);
     weather.update(dt, state.day, clock.hour, witch.position, mood);
@@ -391,13 +425,13 @@ export async function startGame(account: Account) {
       wind: Math.min(1, (weather.windStrength - 1) / 1.4),
       fire: fires.find((f) => f.distanceTo(witch.position) < 3) ?? null,
     };
-    const busy = magic.drawing || shops.isOpen || !!stalls?.isOpen || !!realm?.panelOpen || map.isOpen || editor.active || travel.active;
+    const busy = letters.isOpen || kettle.isOpen || magic.drawing || shops.isOpen || !!stalls?.isOpen || !!realm?.panelOpen || map.isOpen || editor.active || travel.active;
     if (editor.active) editor.focus.addScaledVector(input.wish(editor.focus), dt * 14);
     input.enabled = !editor.active;
     const wish = rest.update(busy ? new Vector3() : input.wish(witch.position), null);
     const before = witch.position.clone();
     // honey mead from the Gilded Griffin: a third faster for a while
-    witch.speedUp = BOOTS[state.boots].speed * ((state.kingdom?.meadUntil ?? 0) > Date.now() ? 1.3 : 1);
+    witch.speedUp = BOOTS[state.boots].speed * ((state.kingdom?.meadUntil ?? 0) > Date.now() ? 1.3 : 1) * ((state.tea?.sunUntil ?? 0) > Date.now() ? 1.2 : 1);
     // indoors the floor is the room's own: clicks land on it too
     input.ground = Witch.ground;
     witch.update(dt, wish, input.running, cottage.mask);
@@ -481,5 +515,5 @@ export async function startGame(account: Account) {
   if (market) hud.toast("Lantern Market", "Six shops, new prices every day. Talk to a keeper at their counter.");
   if (kingdom) hud.toast("Aetherhold", "The royal city, seat of magic. Climb to the palace; the tavern, the Arcanum and the spell range are on the way.");
   // handy in the browser console while developing
-  Object.assign(window, { __game: { familiar: () => familiar, atmos, clock, witch, world, scene, camera: rig.camera, state, net, social, weather, sound, magic, satchel, shops, map } });
+  Object.assign(window, { __game: { familiar: () => familiar, atmos, letters, kettle, cottage, clock, witch, world, scene, camera: rig.camera, state, net, social, weather, sound, magic, satchel, shops, map } });
 }

@@ -8,6 +8,7 @@ import {
   DoubleSide,
   Group,
   HemisphereLight,
+  Object3D,
   Mesh,
   MeshBasicMaterial,
   MeshToonMaterial,
@@ -45,6 +46,8 @@ export interface HouseHooks {
   exit(): void;
   sit(seat: Vector3, yaw: number): void;
   pop(text: string): void;
+  /** the kettle: brew a pot of tea */
+  brew(): void;
   /** your familiar sleeps on the rug */
   familiar(): FamiliarSave;
   onPet(): void;
@@ -68,6 +71,12 @@ export class House implements Room {
   private pet3d!: FamiliarRig;
   private purr = 0;
   private music = new MusicBox();
+  private kettle!: Group;
+  private kettleSpout!: Object3D;
+  private steam: { mesh: Mesh; life: number }[] = [];
+  /** seconds of steam left: the kettle whistles after a brew */
+  private boiling = 0;
+  private steamTimer = 0;
   private time = 0;
   private spots: Record<string, { pos: Vector3; yaw?: number }> = {};
 
@@ -167,6 +176,31 @@ export class House implements Room {
     this.mask.addSolid(fpPos.x, fpPos.z, 0.95);
     this.spots.fire = { pos: fpPos };
 
+    // a copper kettle, for tea: it sits on the low table (placed with the furniture below)
+    const kettle = new Group();
+    const kpot = new Mesh(new SphereGeometry(0.17, 12, 8), toon("terracotta"));
+    kpot.scale.y = 0.8;
+    const klid = new Mesh(new CylinderGeometry(0.07, 0.09, 0.05, 10), toon("brass"));
+    klid.position.y = 0.14;
+    const knob = new Mesh(new SphereGeometry(0.03, 6, 4), toon("brass"));
+    knob.position.y = 0.18;
+    const spout = new Mesh(new ConeGeometry(0.04, 0.2, 6), toon("terracotta"));
+    spout.position.set(0.17, 0.05, 0);
+    spout.rotation.z = -1.0;
+    const handle = new Mesh(new TorusGeometry(0.12, 0.018, 5, 12, Math.PI), toon("wood-dark"));
+    handle.position.y = 0.12;
+    kettle.add(kpot, klid, knob, spout, handle);
+    kettle.traverse((o) => (o.castShadow = true));
+    this.kettle = kettle;
+    this.kettleSpout = spout;
+    const steamMat = new MeshToonMaterial({ color: "#f4f0f8", gradientMap: toonRamp(), transparent: true, opacity: 0.85 });
+    for (let i = 0; i < 6; i++) {
+      const puff = new Mesh(new SphereGeometry(0.05, 6, 4), steamMat);
+      puff.visible = false;
+      s.add(puff);
+      this.steam.push({ mesh: puff, life: 1 });
+    }
+
     // furniture
     const put = async (name: string, r: number, u: number, yaw: number, solid = 0, y = 0, scale = 1) => {
       const o = await furniture(name);
@@ -188,6 +222,10 @@ export class House implements Room {
     await put("lamp_standing", -3.1, 2.0, FACE, 0.25);
     await put("table_low", 0.4, 0.6, FACE + 0.2, 0.55);
     await put("book_set", 0.3, 0.6, FACE - 0.4, 0, 0.32);
+    this.kettle.position.copy(this.at(0.85, 0.35, 0.47));
+    this.kettle.rotation.y = FACE - 0.5;
+    s.add(this.kettle);
+    this.spots.kettle = { pos: this.at(0.85, -0.45) };
     await put("pictureframe_standing_A", -1.9, 3.0, FACE, 0, 1.64, 0.8);
     await put("pictureframe_large_A", 2.4, 3.85, FACE, 0, 1.6);
     await put("chair_stool_wood", 1.5, 0.1, FACE, 0.3);
@@ -281,6 +319,7 @@ export class House implements Room {
       { pos: sp.cat.pos, reach: 1.2, label: `Pet ${this.hooks.familiar().name}`, act: () => this.pet() },
       { pos: sp.chair.pos, reach: 1.3, label: "Sit by the fire", act: () => this.hooks.sit(sp.chair.pos, sp.chair.yaw!) },
       { pos: sp.shelf.pos, reach: 1.5, label: "Read the grimoire", act: () => this.hooks.read() },
+      { pos: sp.kettle.pos, reach: 1.1, label: "Brew tea at the kettle", act: () => this.hooks.brew() },
       {
         pos: sp.music.pos, reach: 1.3, label: this.music.playing ? "Close the music box" : "Wind the music box",
         act: () => this.hooks.pop(this.music.toggle() ? "♪ the music box plays" : "The music box rests"),
@@ -293,6 +332,11 @@ export class House implements Room {
     for (const o of opts) if (d(o.pos) <= o.reach && (!best || d(o.pos) < d(best.pos))) best = o;
     return best;
   };
+
+  /** A pot was brewed: the kettle steams for a while. */
+  steamUp() {
+    this.boiling = 6;
+  }
 
   private pet() {
     this.purr = 2.5;
@@ -317,6 +361,26 @@ export class House implements Room {
     this.purr = Math.max(0, this.purr - dt);
     const awake = Math.min(this.purr, 1);
     animateRig(this.pet3d, { ...restPose(), lie: 1 - awake * 0.6, sleepy: 1 - awake, purr: awake }, t, 0, 0);
+    // a wisp of steam from the spout now and then, a lot right after a brew
+    this.boiling = Math.max(0, this.boiling - dt);
+    this.steamTimer -= dt;
+    if (this.steamTimer <= 0) {
+      this.steamTimer = this.boiling > 0 ? 0.18 : 1.6;
+      const puff = this.steam.find((p) => p.life >= 1);
+      if (puff) {
+        puff.life = 0;
+        this.kettleSpout.getWorldPosition(puff.mesh.position);
+        puff.mesh.visible = true;
+      }
+    }
+    for (const p of this.steam) {
+      if (p.life >= 1) continue;
+      p.life = Math.min(1, p.life + dt / 1.4);
+      p.mesh.position.y += dt * 0.45;
+      p.mesh.position.x += dt * 0.08;
+      p.mesh.scale.setScalar(0.6 + p.life * 1.6);
+      if (p.life >= 1) p.mesh.visible = false;
+    }
     const crank = this.scene.getObjectByName("crank");
     if (crank && this.music.playing) crank.rotation.x += dt * 3;
   }

@@ -45,9 +45,22 @@ const CHARMS: Record<CharmSpell, { name: string; price: number }> = {
 };
 export const CHARM_SPELLS = Object.keys(CHARMS) as CharmSpell[];
 
-export type ItemCat = "seed" | "crop" | "flower" | "produce" | "material" | "charm";
+/** teas: brewed at the cottage kettle from two flowers of one colour, drunk from the satchel */
+export type TeaId = "rosehip" | "sunpetal" | "bluebell" | "chamomile";
+export const TEAS: Record<TeaId, { name: string; flower: FlowerColor; effect: string }> = {
+  rosehip: { name: "Rosehip tea", flower: "pink", effect: "Warms the ink: +3 drops" },
+  sunpetal: { name: "Sunpetal tea", flower: "yellow", effect: "A spring in your step: 20% faster for 3 minutes" },
+  bluebell: { name: "Bluebell tea", flower: "blue", effect: "A steady hand: your next 3 glyphs cost a drop less" },
+  chamomile: { name: "Chamomile tea", flower: "white", effect: "Sweet dreams: tonight's sleep fills your ink bottle" },
+};
+export const TEA_IDS = Object.keys(TEAS) as TeaId[];
+/** flowers one pot takes, and the cups it makes */
+export const TEA_FLOWERS = 2;
+export const TEA_CUPS = 2;
+
+export type ItemCat = "seed" | "crop" | "flower" | "produce" | "material" | "charm" | "tea";
 export type Produce = "honey" | "egg" | "duck_egg" | "wool" | "milk";
-export type ItemId = `seed:${CropId}` | `crop:${CropId}` | `flower:${FlowerColor}` | Produce | Material | `charm:${CharmSpell}` | "charm_blank";
+export type ItemId = `seed:${CropId}` | `crop:${CropId}` | `flower:${FlowerColor}` | Produce | Material | `charm:${CharmSpell}` | "charm_blank" | `tea:${TeaId}`;
 
 export interface ItemDef {
   name: string;
@@ -79,6 +92,8 @@ ITEMS.brass = { name: "Brass", cat: "material", price: 20, pays: 8 };
 // charms are bought, or inscribed at the cauldron onto a blank; shops buy them back at 60%
 for (const c of CHARM_SPELLS) ITEMS[`charm:${c}`] = { name: CHARMS[c].name, cat: "charm", price: CHARMS[c].price, pays: Math.round(CHARMS[c].price * 0.6), grown: true };
 ITEMS.charm_blank = { name: "Charm blank", cat: "charm", price: 2, pays: 1 };
+// a cup of tea is worth a little more than the flower that went into it
+for (const t of TEA_IDS) ITEMS[`tea:${t}`] = { name: TEAS[t].name, cat: "tea", price: 6, pays: 3, grown: true };
 
 export const ITEM_IDS = Object.keys(ITEMS) as ItemId[];
 export const isItem = (id: unknown): id is ItemId => typeof id === "string" && id in ITEMS;

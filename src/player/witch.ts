@@ -11,6 +11,8 @@ const WALK = 2.6;
 const RUN = 5.2;
 const RADIUS = 0.3;
 
+type Reaction = "cast" | "fizzle" | "gesture" | "sip";
+
 /** Little things she does when she stands still a while. */
 type Idle = "yawn" | "rub" | "stretch" | "hat" | "sky" | "tap" | "twirl" | "hum" | "warm";
 const IDLE_LENGTH: Record<Idle, number> = { yawn: 2.6, rub: 2, stretch: 2.6, hat: 3, sky: 2.8, tap: 2.2, twirl: 1.5, hum: 4.5, warm: 5 };
@@ -54,7 +56,8 @@ export class Witch {
   private hatLagVel = 0;
   private lean = 0;
   private drawBlend = 0;
-  private reaction: { kind: "cast" | "fizzle" | "gesture"; t: number } | null = null;
+  private reaction: { kind: Reaction; t: number } | null = null;
+  private cup: Group | null = null;
   /** kneeling with the pen out */
   drawing = false;
   /** walking and running speed, ×1.25 with mossy boots */
@@ -173,9 +176,34 @@ export class Witch {
     return this.root.rotation.y;
   }
 
-  /** A short body reaction to a spell: a happy hop, or a puzzled head shake. */
-  react(kind: "cast" | "fizzle" | "gesture") {
+  /** A short body reaction to a spell: a happy hop, or a puzzled head shake; or a sip of tea. */
+  react(kind: Reaction) {
     this.reaction = { kind, t: 0 };
+    if (kind === "sip") {
+      this.cup ??= this.makeCup();
+      this.cup.visible = true;
+    }
+  }
+
+  /** A little teacup with steam, held in her right hand while she sips. */
+  private makeCup() {
+    const g = new Group();
+    const cup = new Mesh(new CylinderGeometry(0.075, 0.055, 0.1, 10), toon("cream"));
+    const tea = new Mesh(new CylinderGeometry(0.068, 0.068, 0.01, 10), toon("honey"));
+    tea.position.y = 0.045;
+    const steam = new Group();
+    steam.name = "steam";
+    const puffMat = new MeshToonMaterial({ color: "#ffffff", gradientMap: toonRamp(), transparent: true, opacity: 0.8 });
+    for (let i = 0; i < 3; i++) {
+      const p = new Mesh(new IcosahedronGeometry(0.03, 0), puffMat);
+      p.position.set((i - 1) * 0.025, 0.1 + i * 0.07, 0);
+      steam.add(p);
+    }
+    g.add(cup, tea, steam);
+    g.position.set(0, -0.3, 0.06);
+    g.visible = false;
+    this.parts.ArmR.add(g);
+    return g;
   }
 
   /** A big leaf on a stem, held over her head in the rain. */
@@ -484,6 +512,25 @@ export class Witch {
         this.model.position.y = Math.max(Math.sin(Math.PI * Math.min(r.t / 0.45, 1)), 0) * 0.22;
         P.Hat.rotation.x -= 0.25 * up;
         if (r.t > 0.9) this.reaction = null;
+      } else if (r.kind === "sip") {
+        // the cup comes up, a long sip with eyes shut, and down again
+        const k = Math.sin(Math.PI * Math.min(r.t / 2.6, 1));
+        const sip = Math.max(0, Math.sin(Math.PI * Math.min(Math.max((r.t - 0.7) / 1.3, 0), 1)));
+        P.ArmR.rotation.x -= 1.5 * k + 0.35 * sip;
+        P.ArmR.rotation.z += 0.75 * k;
+        P.Head.rotation.x -= 0.2 * sip;
+        P.EyeL.scale.y = Math.min(P.EyeL.scale.y, 1 - 0.85 * sip);
+        P.EyeR.scale.y = Math.min(P.EyeR.scale.y, 1 - 0.85 * sip);
+        if (this.cup) {
+          // keep the cup upright whatever the arm does
+          this.cup.rotation.x = -P.ArmR.rotation.x + R.ArmR.rot.x;
+          this.cup.rotation.z = -P.ArmR.rotation.z + R.ArmR.rot.z;
+          this.cup.getObjectByName("steam")!.children.forEach((p, i) => (p.position.y = 0.1 + ((r.t * 0.12 + i * 0.07) % 0.21)));
+        }
+        if (r.t > 2.6) {
+          this.reaction = null;
+          if (this.cup) this.cup.visible = false;
+        }
       } else if (r.kind === "gesture") {
         // quick crouch and reach, for picking and planting
         const k = Math.sin(Math.PI * Math.min(r.t / 0.5, 1));

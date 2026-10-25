@@ -149,7 +149,13 @@ export class Magic {
     const carving = stone >= 0 && r.kind === "spell";
     const charm = !carving && r.kind === "spell" && !!at && at.distanceTo(this.world.spots.cauldron) < 1.4 && count(this.state, "charm_blank") > 0;
     // carving and inscribing cost double, or half again with a gold nib
-    const cost = Math.ceil(inkCost(r, this.state.pen) * (carving || charm ? (this.state.pen >= 2 ? 1.5 : 2) : 1));
+    let cost = Math.ceil(inkCost(r, this.state.pen) * (carving || charm ? (this.state.pen >= 2 ? 1.5 : 2) : 1));
+    // bluebell tea steadies the hand: a drop less for the next few glyphs
+    const steady = this.state.tea?.steady ?? 0;
+    if (r.kind === "spell" && steady > 0 && cost > 1 && this.state.ink >= cost - 1) {
+      cost -= 1;
+      this.state.tea!.steady = steady - 1;
+    }
 
     if (r.kind === "spell" && this.state.ink < cost) {
       this.finish(true);

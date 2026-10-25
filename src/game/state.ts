@@ -2,6 +2,7 @@ import type { Gift, HatStyle } from "../../shared/protocol";
 import type { IslandLayout } from "../island/layout";
 import type { SpellId } from "../magic/glyph";
 import type { Herd } from "../farm/livestock.ts";
+import { type Post, newPost } from "./post.ts";
 import { DEFAULT_FAMILIAR, FAMILIAR_KINDS, type FamiliarSave } from "../../shared/familiars.ts";
 import type { P, Sigil } from "../magic/recognizer";
 
@@ -120,6 +121,10 @@ export interface Save {
   island?: IslandLayout;
   /** newest visitor deed already applied (server time) */
   seenDeeds?: number;
+  /** letters from the market's witches, and favours on their way */
+  post: Post;
+  /** tea that's still working: sunpetal until (real time), bluebell glyphs left, chamomile for tonight */
+  tea?: { sunUntil?: number; steady?: number; dreams?: boolean };
   /** your familiar: a cat, a fox or a frog, and its name */
   familiar: FamiliarSave;
   /** Aetherhold: honey mead until (real time), and the market day of the last wish, bell and royal delivery */
@@ -163,6 +168,7 @@ export function newGame(plots: number, stones: number): Save {
     basket: 0,
     hats: ["classic"],
     familiar: { ...DEFAULT_FAMILIAR },
+    post: newPost(),
     shed: {},
     land: 1,
     day: 1,
@@ -237,6 +243,7 @@ export function load(plots: number, stones: number, user: string, server: unknow
         s.basket ??= 0;
         s.hats ??= ["classic"];
         if (!FAMILIAR_KINDS.includes(s.familiar?.kind)) s.familiar = { ...DEFAULT_FAMILIAR };
+        s.post ??= newPost();
         s.shed ??= {};
         // saves from before scrolls drew every sigil already
         s.sigils ??= ["growth", "water", "wind", "light", "flame"];
