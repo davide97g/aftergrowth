@@ -1,4 +1,5 @@
-import { Camera, Plane, Raycaster, Vector2, Vector3 } from "three";
+import { Camera, Raycaster, Vector2, Vector3 } from "three";
+import { type Ground, flat, hitGround } from "../world/ground";
 
 const S = Math.SQRT1_2;
 // camera-relative axes on the ground plane
@@ -15,7 +16,8 @@ export class Input {
   private pinch: { a: number; b: number; dist: number } | null = null;
   private touches = new Map<number, Vector2>();
   private ray = new Raycaster();
-  private ground = new Plane(new Vector3(0, 1, 0), 0);
+  /** the island's ground height, so clicks land on hills too */
+  ground: Ground = flat;
   zoomDelta = 0;
   /** false while something else owns clicks (the island editor) */
   enabled = true;
@@ -111,8 +113,8 @@ export class Input {
     const r = this.canvas.getBoundingClientRect();
     const ndc = new Vector2(((x - r.left) / r.width) * 2 - 1, -((y - r.top) / r.height) * 2 + 1);
     this.ray.setFromCamera(ndc, this.camera);
-    const hit = new Vector3();
-    if (this.ray.ray.intersectPlane(this.ground, hit)) this.target = hit;
+    const hit = hitGround(this.ray.ray, this.ground);
+    if (hit) this.target = hit;
   }
 
   get running() {

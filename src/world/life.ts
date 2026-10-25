@@ -103,9 +103,9 @@ class Bunny {
     this.timer += dt / 0.42;
     const t = Math.min(this.timer, 1);
     p.lerpVectors(this.from, this.to, t);
-    p.y = Math.sin(Math.PI * t) * 0.28;
+    p.y = this.world.ground(p.x, p.z) + Math.sin(Math.PI * t) * 0.28;
     if (t >= 1) {
-      p.y = 0;
+      p.y = this.world.ground(p.x, p.z);
       if (--this.hops > 0) this.pickHop(player, scared, true);
       else {
         this.state = "idle";
@@ -189,7 +189,7 @@ export class Life {
       while (out.length < n) {
         const x = center.x + (Math.random() * 2 - 1) * radius;
         const z = center.z + (Math.random() * 2 - 1) * radius;
-        if (world.mask.onGround(x, z)) out.push(new Vector3(x, yMin + Math.random() * (yMax - yMin), z));
+        if (world.mask.onGround(x, z)) out.push(new Vector3(x, world.ground(x, z) + yMin + Math.random() * (yMax - yMin), z));
       }
       return out;
     };
@@ -233,7 +233,7 @@ export class Life {
         x = (Math.random() * 2 - 1) * 8;
         z = (Math.random() * 2 - 1) * 8;
       } while (!world.mask.walkable(x, z, 0.4));
-      obj.position.set(x, 0, z);
+      obj.position.set(x, world.ground(x, z), z);
       scene.add(obj);
       life.bunnies.push(new Bunny(obj, world));
     }
@@ -275,7 +275,7 @@ export class Life {
       const prev = b.obj.position.clone();
       b.obj.position.set(
         b.home.x + Math.sin(p * b.f[0]) * 1.4 + Math.sin(p * b.f[1] * 1.7) * 0.3,
-        0.55 + Math.abs(Math.sin(p * b.f[1])) * 0.6,
+        b.home.y + 0.05 + Math.abs(Math.sin(p * b.f[1])) * 0.6,
         b.home.z + Math.cos(p * b.f[2]) * 1.4,
       );
       const d = b.obj.position.clone().sub(prev);

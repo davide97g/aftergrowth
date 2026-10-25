@@ -197,6 +197,58 @@ multiplayer (live and async); magic drawn with rules, like *Witch Hat Atelier*.
   sub-bass, so the bass lost its sub-octave and the song got a 45 Hz high-pass. In game it sits well
   under the sound effects.
 
+## 18. Aetherhold, the royal city
+
+- A third shared island, and the first that isn't flat: a hill in four rings around the palace,
+  which stands near the top of the screen, so the city climbs away from the camera and higher
+  districts never hide lower ones. Retaining walls between the rings, cobbled ramps for the avenue's
+  switchbacks, narrow stairs for the alleys, a grand marble stair to the palace.
+- Everything is generated from one seeded plan in plain TypeScript (no Blender): streets first, a few
+  landmarks, then houses packed along every street with the odd gap wide enough to squeeze through,
+  then backfilled behind. That gives narrow streets and alleys for free. Tests flood-fill the walk
+  mask to prove every place is reachable and no walkable step climbs a cliff.
+- Heights reached the whole engine: `ground(x, z)` on every world, clicks marched down to the hill,
+  spell effects lifted per cast, prompts, name tags, birds, bunnies and rain follow it.
+- Two things that went wrong first: the hill's darker grass used a wind token, and the wind shader
+  bends by height, so at 12 units up whole slopes swung across the grand stair (now `turf`); and the
+  crystal's light bloomed into a white blob until it was turned down.
+- Houses only get windows on the faces the camera can see. At night the whole city lights up, and
+  the ley lines down the avenue glow.
+- Buildings in front of the witch open up in a dithered circle (`render/cut.ts`).
+- Gameplay: four merchants, the Royal Arcanum, the tavern's menu (mead makes you faster), a daily
+  wishing fountain, the great bell, a timed spell range, the royal steward's daily requisition, and
+  twelve townsfolk to chat with.
+- Performance: the city merges to about 40 draw calls; trees are instanced. A zoomed-out view of the
+  kingdom costs about 1800 draw calls and 0.8 M triangles across all passes (the market: 1100 and
+  0.5 M), most of them the witches and props.
+
+## 19. Accounts, friends and the map
+
+- Better Auth with email and password, no verification, on SQLite through Node's own `node:sqlite`
+  (no native module to build). The game's tables share the database: profiles, saves, friendships
+  and portals. Saves moved from the browser to the server, with a local unsynced copy so a reload
+  that beats the upload (travel, the editor) never loses a change.
+- Islands are private now. Friends are made by a six-letter code or by meeting on a shared island;
+  then each witch decides whether to open their portal to the other. The hub enforces it for every
+  visit and every deed, and closing a portal sends a guest home.
+- The first account on a browser from before accounts takes its old save, and its island, deeds and
+  stall listings on the server (`claim`, proven by the old token).
+- The map (Tab) replaced the portal's list: a world chart drawn from each island's real outline and
+  a chart of the island you're on, with pins for its places (`world.places`). Clicking travels at
+  once: to another island through a vortex where you stand, or across this one behind a fade.
+
+## 20. Inside the palace
+
+- The palace's great door opens now. Rooms are one idea: `game/cottage.ts` swaps in any `Room` (its
+  scene, floor, framing and actions) and the floor's height while inside, so the cottage and the
+  throne hall share the code.
+- The throne hall (`kingdom/palace.ts`): a long cutaway hall turned diagonally so it reads like the
+  rest of the game, with the far wall and side left standing and a low balustrade on the open side.
+  Checkered marble, a royal carpet, a stepped dais, the throne under a stained rose window, braziers,
+  and the Heart of Aether with its rune rings and drifting motes.
+- Queen Seraphine gives a daily stipend; the Heart refills ink once a day; guards and lecterns.
+- Found while testing: other players' name tags stayed on screen indoors; they hide inside now.
+
 ## How things were checked
 
 Every step was checked in a headless browser (screenshots, scripted clicks, keyboard and mouse

@@ -119,9 +119,12 @@ export interface Save {
   island?: IslandLayout;
   /** newest visitor deed already applied (server time) */
   seenDeeds?: number;
+  /** Aetherhold: honey mead until (real time), and the market day of the last wish, bell and royal delivery */
+  kingdom?: { meadUntil?: number; wished?: number; rang?: number; delivered?: number; rangeBest?: number; audience?: number; heart?: number };
 }
 
-const KEY = "af.save.v1";
+/** the save from before accounts, kept in the browser; brought into the first account that signs in */
+const OLD_KEY = "af.save.v1";
 
 /** Saves from before the bag kept seeds, crops, flowers and honey apart. */
 interface Legacy {
@@ -165,11 +168,56 @@ export function newGame(plots: number, stones: number): Save {
   };
 }
 
-export function load(plots: number, stones: number): Save {
+/**
+ * The save lives on the server. This browser keeps a copy too, marked unsynced until the server has
+ * it: a reload right after a change (travelling, the editor) can arrive before the upload did.
+ */
+let cloud = { key: "", sent: "" };
+
+/** the save as sent, and whether the server confirmed it */
+interface LocalCopy { data: string; synced: boolean }
+
+function readLocal(key: string): LocalCopy | null {
   try {
-    const raw = localStorage.getItem(KEY);
+    return JSON.parse(localStorage.getItem(key) ?? "null") as LocalCopy | null;
+  } catch {
+    return null;
+  }
+}
+
+function writeLocal(key: string, copy: LocalCopy) {
+  try {
+    localStorage.setItem(key, JSON.stringify(copy));
+  } catch {
+    // storage full or blocked: the server copy is enough
+  }
+}
+
+/** The save before accounts, if this browser still has one. */
+export function oldSave(): unknown {
+  try {
+    return JSON.parse(localStorage.getItem(OLD_KEY) ?? "null");
+  } catch {
+    return null;
+  }
+}
+
+export function forgetOldSave() {
+  try {
+    localStorage.removeItem(OLD_KEY);
+  } catch {
+    // nothing to forget
+  }
+}
+
+/** Start from the account's save (or this browser's newer copy of it), migrating older saves. */
+export function load(plots: number, stones: number, user: string, server: unknown): Save {
+  cloud = { key: `af.save.${user}`, sent: "" };
+  const local = readLocal(cloud.key);
+  try {
+    const raw = local && !local.synced ? JSON.parse(local.data) : structuredClone(server);
     if (raw) {
-      const s = JSON.parse(raw) as Save & Legacy;
+      const s = raw as Save & Legacy;
       if (s.version === 1 && s.plots.length === plots && s.stones.length === stones) {
         s.bag = { ...fromLegacy(s), ...s.bag };
         delete s.seeds;
@@ -194,25 +242,37 @@ export function load(plots: number, stones: number): Save {
       }
     }
   } catch {
-    // corrupted or unavailable storage: start over
+    // a broken save: start over
   }
   return newGame(plots, stones);
 }
 
-export function save(state: Save) {
-  try {
-    localStorage.setItem(KEY, JSON.stringify(state));
-  } catch {
-    // storage full or blocked: keep playing unsaved
-  }
+/** Keep the save here and send it to the server if it changed. `leaving`: the page is about to go. */
+export function save(state: Save, leaving = false) {
+  if (!cloud.key) return;
+  const data = JSON.stringify(state);
+  if (data === cloud.sent) return;
+  cloud.sent = data;
+  writeLocal(cloud.key, { data, synced: false });
+  const key = cloud.key;
+  // keepalive lets the upload finish after the page is gone, for bodies up to 64 KB
+  void fetch("/api/save", { method: "PUT", body: data, keepalive: leaving && data.length < 60_000 }).then((r) => {
+    if (r.ok && cloud.sent === data) writeLocal(key, { data, synced: true });
+  }, () => {
+    // offline: the unsynced copy is sent next time
+    if (cloud.sent === data) cloud.sent = "";
+  });
 }
 
-export function resetSave() {
+export async function resetSave() {
+  const key = cloud.key;
+  cloud = { key: "", sent: "" };
   try {
-    localStorage.removeItem(KEY);
+    localStorage.removeItem(key);
   } catch {
     // nothing to remove
   }
+  await fetch("/api/save", { method: "DELETE" }).catch(() => {});
 }
 
 export const count = (s: Save, id: ItemId) => s.bag[id] ?? 0;

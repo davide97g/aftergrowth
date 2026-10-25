@@ -10,6 +10,9 @@ services:
     environment:
       PORT: "8787"
       DATA: /data/world.json
+      # where the browser reaches the game: Better Auth builds its URLs and checks origins from it.
+      # The session secret is made once and kept in the volume (data/auth-secret).
+      BETTER_AUTH_URL: https://aftergrowth.davideghiotto.it
     volumes:
       - aftergrowth-data:/data
     networks:

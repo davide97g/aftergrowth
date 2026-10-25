@@ -19,6 +19,7 @@ import {
   Vector3,
 } from "three";
 import { loadGltf, prop } from "../core/assets";
+import type { Room } from "../game/cottage";
 import type { Action } from "../game/interact";
 import { color } from "../core/palette";
 import { applyToonTexture, toon, toonRamp } from "../render/toon";
@@ -47,10 +48,13 @@ export interface HouseHooks {
 }
 
 /** Inside the egg cottage: a cutaway room to rest in. */
-export class House {
+export class House implements Room {
   readonly scene = new Scene();
   readonly mask = new WalkMask();
   readonly entry: Vector3;
+  readonly entryYaw = Math.PI + Math.PI / 4;
+  readonly zoom = 1.2;
+  private look = new Vector3();
   private fireLight = new PointLight("#ff9a4a", 2.2, 8, 1.6);
   private lampLight = new PointLight("#ffd28a", 1, 6, 1.8);
   private window = new DirectionalLight("#cfe4ff", 1);
@@ -270,6 +274,11 @@ export class House {
     g.traverse((o) => (o.castShadow = true));
     this.catHead = head;
     return g;
+  }
+
+  /** The camera stays on the room and only leans towards the witch. */
+  focus(witch: Vector3) {
+    return this.look.set(0, 0, 0).lerp(witch, 0.3);
   }
 
   /** Interaction provider for everything inside. */

@@ -11,6 +11,8 @@ export class CameraRig {
   private focus = new Vector3();
   private zoom = 1;
   private aspect = 1;
+  /** how far out you may zoom (the kingdom lets you see more of its hill) */
+  minZoom = 0.6;
 
   constructor(start: Vector3) {
     this.focus.copy(start);
@@ -24,7 +26,7 @@ export class CameraRig {
 
   addZoom(delta: number) {
     if (!delta) return;
-    this.zoom = MathUtils.clamp(this.zoom * Math.exp(delta), 0.6, 1.8);
+    this.zoom = MathUtils.clamp(this.zoom * Math.exp(delta), this.minZoom, 1.8);
     this.applyZoom();
   }
 

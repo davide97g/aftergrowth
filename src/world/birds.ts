@@ -80,6 +80,7 @@ export class Birds {
       const pool = this.world.plots.length && k < 6 ? this.world.plots : this.world.flowers;
       const base = pool[(i * 5 + k * 7) % pool.length];
       const p = new Vector3(base.x + (Math.random() - 0.5) * 2.5, 0, base.z + (Math.random() - 0.5) * 2.5);
+      p.y = this.world.ground(p.x, p.z);
       if (!this.scared(p)) return p;
     }
     return new Vector3(0, -50, 0);
@@ -128,7 +129,7 @@ export class Birds {
       b.root.scale.setScalar(1.3);
       this.scene.add(b.root);
     }
-    this.flock = { birds, from, dir, t: 0, y: 7 + Math.random() * 3 };
+    this.flock = { birds, from, dir, t: 0, y: 7 + Math.random() * 3 + this.world.ground(0, 0) };
   }
 
   private updateHopper(h: Hopper, dt: number, player: Vector3, away: boolean) {
@@ -139,7 +140,7 @@ export class Birds {
       h.state = "fly";
       h.from.copy(p);
       const out = p.clone().sub(player).setY(0).normalize();
-      h.to.copy(p).addScaledVector(out, 14).setY(9);
+      h.to.copy(p).addScaledVector(out, 14).setY(p.y + 9);
       h.t = 2.2;
       h.root.rotation.y = Math.atan2(out.x, out.z);
     }
@@ -176,11 +177,11 @@ export class Birds {
     } else {
       const k = 1 - Math.max(h.t, 0) / 0.9;
       p.lerpVectors(h.from, h.to, k);
-      p.y = Math.abs(Math.sin(k * Math.PI * 3)) * 0.12;
+      p.y = this.world.ground(p.x, p.z) + Math.abs(Math.sin(k * Math.PI * 3)) * 0.12;
       if (h.t <= 0) {
         h.state = "peck";
         h.t = 1.5 + Math.random() * 3;
-        p.y = 0;
+        p.y = this.world.ground(p.x, p.z);
       }
     }
   }

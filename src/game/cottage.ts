@@ -1,7 +1,8 @@
-import { Vector3 } from "three";
+import { type Scene, Vector3 } from "three";
 import type { CameraRig } from "../core/camera";
 import { House } from "../house/house";
-import type { Witch } from "../player/witch";
+import { Witch } from "../player/witch";
+import { type Ground, flat } from "../world/ground";
 import type { Hud } from "../ui/hud";
 import { fadeThrough } from "../ui/fade";
 import type { Mood } from "../world/daycycle";
@@ -12,18 +13,38 @@ import { type Action, Interactions } from "./interact";
 import type { Rest } from "./rest";
 import type { Save } from "./state";
 
+/** A place indoors: its own scene and floor, and what can be done there. */
+export interface Room {
+  readonly scene: Scene;
+  readonly mask: WalkMask;
+  /** where the witch stands on coming in, facing `entryYaw` */
+  readonly entry: Vector3;
+  readonly entryYaw: number;
+  /** camera zoom indoors */
+  readonly zoom: number;
+  action(near: Vector3): Action | null;
+  /** where the camera looks, given the witch */
+  focus(witch: Vector3): Vector3;
+  /** the floor's height (flat when missing) */
+  ground?: Ground;
+  update(dt: number, mood: Mood): void;
+}
+
 /** When the witch wakes after sleeping. */
 const WAKE_HOUR = 6.5;
 
 /**
- * Going in and out of the cottage: swaps the rendered scene, the walk mask, the camera framing
- * and the set of things to interact with. Sleeping lives here too.
+ * Going in and out of rooms (the cottage, the palace hall): swaps the rendered scene, the walk mask,
+ * the camera framing and the set of things to interact with. Sleeping lives here too.
  */
 export class Cottage {
-  inside = false;
   readonly indoors: Interactions;
+  /** the room she is in, or null outdoors */
+  private room: Room | null = null;
   private outsideZoom = 1;
-  private roomFocus = new Vector3();
+  private outsideGround: Ground = flat;
+  /** where she steps back out */
+  readonly outside = new Vector3();
 
   private constructor(
     private house: House,
@@ -44,8 +65,12 @@ export class Cottage {
   ) {
     this.indoors = new Interactions(deps.rig.camera);
     this.indoors.add(deps.rest.action);
-    this.indoors.add(house.action);
+    this.indoors.add((near) => this.room?.action(near) ?? null);
     this.indoors.enabled = false;
+  }
+
+  get inside() {
+    return this.room !== null;
   }
 
   static async create(deps: Cottage["deps"], openGrimoire: () => void) {
@@ -66,7 +91,7 @@ export class Cottage {
   }
 
   get mask(): WalkMask {
-    return this.inside ? this.house.mask : this.deps.world.mask;
+    return this.room?.mask ?? this.deps.world.mask;
   }
 
   /** Interaction provider for the door outside. */
@@ -74,30 +99,37 @@ export class Cottage {
     const door = this.deps.world.door;
     if (!door || Math.hypot(door.x - near.x, door.z - near.z) > 1.4) return null;
     if (this.deps.owner) return { pos: door, reach: 1.4, label: `${this.deps.owner}'s cottage · the door is closed`, act: null };
-    return { pos: door, reach: 1.4, label: "Go inside", act: () => this.enter(), priority: 1 };
+    return { pos: door, reach: 1.4, label: "Go inside", act: () => this.enter(this.house, door.clone().add(new Vector3(0.6, 0, 0.6))), priority: 1 };
   };
 
-  private enter() {
+  /** Step into a room; leaving puts her back at `out`. */
+  enter(room: Room, out: Vector3) {
     const { stage, witch, rig } = this.deps;
     fadeThrough(() => {
-      this.inside = true;
+      this.room = room;
+      this.outside.copy(out);
       this.outsideZoom = rig.zoomLevel;
+      this.outsideGround = Witch.ground;
+      Witch.ground = room.ground ?? flat;
       stage.scene.remove(witch.root);
-      this.house.scene.add(witch.root);
-      witch.position.copy(this.house.entry);
-      witch.root.rotation.y = Math.PI + Math.PI / 4;
-      stage.post.setScene(this.house.scene);
-      rig.snap(1.2, new Vector3());
+      room.scene.add(witch.root);
+      witch.position.copy(room.entry);
+      witch.root.rotation.y = room.entryYaw;
+      stage.post.setScene(room.scene);
+      rig.snap(room.zoom, room.focus(room.entry));
     });
   }
 
-  private leave() {
-    const { stage, witch, rig, world } = this.deps;
+  leave() {
+    const { stage, witch, rig } = this.deps;
+    const room = this.room;
+    if (!room) return;
     fadeThrough(() => {
-      this.inside = false;
-      this.house.scene.remove(witch.root);
+      this.room = null;
+      Witch.ground = this.outsideGround;
+      room.scene.remove(witch.root);
       stage.scene.add(witch.root);
-      witch.position.copy(world.door ?? world.spawn).add(new Vector3(0.6, 0, 0.6));
+      witch.position.copy(this.outside);
       witch.root.rotation.y = Math.PI / 4;
       stage.post.setScene(stage.scene);
       rig.snap(this.outsideZoom, witch.position);
@@ -117,13 +149,13 @@ export class Cottage {
     });
   }
 
-  /** Indoors the camera stays on the room and only leans towards the witch. */
+  /** Indoors the camera follows the room's framing. */
   cameraTarget(): Vector3 {
-    return this.roomFocus.set(0, 0, 0).lerp(this.deps.witch.position, 0.3);
+    return this.room?.focus(this.deps.witch.position) ?? this.deps.witch.position;
   }
 
   update(dt: number, mood: Mood) {
     this.indoors.enabled = this.inside;
-    if (this.inside) this.house.update(dt, mood);
+    this.room?.update(dt, mood);
   }
 }

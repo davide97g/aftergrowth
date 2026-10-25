@@ -15,6 +15,7 @@
     "assets": "blender -b -P tools/blender/build_props.py && blender -b -P tools/blender/build_chibi.py && blender -b -P tools/blender/build_furniture.py && blender -b -P tools/blender/build_market.py && blender -b -P tools/blender/build_animals.py"
   },
   "dependencies": {
+    "better-auth": "^1.7.13",
     "three": "^0.186.1",
     "ws": "^8.22.0"
   },

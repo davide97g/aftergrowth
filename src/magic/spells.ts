@@ -133,6 +133,33 @@ class Sparks {
   }
 }
 
+/**
+ * Where spell effects go. They are made as if on flat ground; on a hill each cast's effects sit in a
+ * group lifted to the ground height where it was cast.
+ */
+class Lifted {
+  lift = 0;
+  private groups = new Map<number, Group>();
+  constructor(private root: Scene) {}
+
+  add(...objs: Object3D[]) {
+    if (!this.lift) return void this.root.add(...objs);
+    const key = Math.round(this.lift * 20) / 20;
+    let g = this.groups.get(key);
+    if (!g) {
+      g = new Group();
+      g.position.y = key;
+      this.root.add(g);
+      this.groups.set(key, g);
+    }
+    g.add(...objs);
+  }
+
+  remove(...objs: Object3D[]) {
+    for (const o of objs) o.removeFromParent();
+  }
+}
+
 function ring(center: Vector3, r: number) {
   const a = Math.random() * Math.PI * 2;
   const d = Math.sqrt(Math.random()) * r;
@@ -153,7 +180,11 @@ export class Spells {
   /** the weather's wind; spells blow on top of it */
   baseWind = 1;
 
-  private constructor(private scene: Scene, private world: World, private life: Life, private hooks: SpellHooks) {
+  private scene: Lifted;
+
+  private constructor(root: Scene, private world: World, private life: Life, private hooks: SpellHooks) {
+    this.scene = new Lifted(root);
+    const scene = this.scene;
     // a fixed pool: adding lights later would recompile every material
     for (let i = 0; i < 4; i++) {
       const l = new PointLight("#ffd28a", 0, 7, 1.6);
@@ -190,10 +221,12 @@ export class Spells {
    */
   cast(spell: SpellId, at: Vector3, power: number, dir: Vector3 | null, quiet = false): number {
     this.quiet = quiet;
+    this.scene.lift = this.world.ground(at.x, at.z);
     try {
-      return this.castNow(spell, at, power, dir);
+      return this.castNow(spell, at.clone().setY(0), power, dir);
     } finally {
       this.quiet = false;
+      this.scene.lift = 0;
     }
   }
 
@@ -212,7 +245,9 @@ export class Spells {
   }
 
   fizzle(at: Vector3) {
-    this.puff(at, "#8a8494", 1.2);
+    this.scene.lift = this.world.ground(at.x, at.z);
+    this.puff(at.clone().setY(0), "#8a8494", 1.2);
+    this.scene.lift = 0;
   }
 
   // ---------- effects ----------
@@ -354,7 +389,7 @@ export class Spells {
     if (light) {
       light.userData.busy = true;
       light.color.set(color);
-      light.position.copy(at).setY(height);
+      light.position.copy(at).setY(height + this.scene.lift);
     }
     return {
       light,
@@ -382,6 +417,7 @@ export class Spells {
     }, { life: 1.8, loop: true });
     this.scene.add(orb, halo.points);
     const l = this.orbLight(at, "#ffe2a8", life, 1.7, 3 + power, 0);
+    const lift = this.scene.lift;
     let t = 0;
     this.add({
       update: (dt, mood) => {
@@ -389,7 +425,7 @@ export class Spells {
         const k = Math.min(t / 0.6, 1) * (1 - Math.max((t - life + 2) / 2, 0));
         orb.position.copy(at).setY(1.6 + Math.sin(t * 1.4) * 0.15);
         orb.scale.setScalar(Math.max(easeOutBack(Math.min(t / 0.6, 1)) * k, 0.001));
-        l.light?.position.copy(orb.position);
+        l.light?.position.copy(orb.position).setY(orb.position.y + lift);
         l.set(k, mood, t);
         halo.fade = k;
         halo.update(dt);

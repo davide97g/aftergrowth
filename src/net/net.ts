@@ -1,50 +1,36 @@
-import type { ClientMsg, Profile, ServerMsg, Theme } from "../../shared/protocol";
+import type { ClientMsg, HatStyle, ServerMsg, Theme } from "../../shared/protocol";
 
-const KEY = "af.profile.v1";
-const FIRST = ["Mossy", "Little", "Sleepy", "Bright", "Quiet", "Honey", "Misty", "Clover", "Amber", "Velvet"];
-const LAST = ["Wren", "Fern", "Sage", "Moth", "Robin", "Juniper", "Sparrow", "Willow", "Thistle", "Plum"];
 export const COLORS = ["#4a5bb5", "#7db65a", "#e07a9a", "#e0a84a", "#5aa7c8", "#9a6ad0"];
 export const THEMES: Theme[] = ["meadow", "blossom", "autumn", "mint"];
 
-export interface Me extends Profile { token: string; theme: Theme }
+/** Before accounts, a browser was a witch: an id and a secret token that proved it. */
+const OLD_PROFILE = "af.profile.v1";
+type OldProfile = { id: string; token: string; color?: string; hat?: HatStyle; theme?: Theme };
 
-function randomId(n: number) {
-  const a = new Uint8Array(n);
-  crypto.getRandomValues(a);
-  return [...a].map((b) => b.toString(36).padStart(2, "0")).join("").slice(0, n);
-}
-
-/** Who this browser is: an id, a secret token that proves it, a name, a hat colour, an island theme. */
-export function loadMe(): Me {
+/** The witch this browser was before accounts, if it hasn't been brought into an account yet. */
+export function oldProfile(): OldProfile | null {
   try {
-    const me = JSON.parse(localStorage.getItem(KEY) ?? "null") as Me | null;
-    if (me?.id && me.token) return me;
+    const p = JSON.parse(localStorage.getItem(OLD_PROFILE) ?? "null") as OldProfile | null;
+    return p?.id && p.token ? p : null;
   } catch {
-    // fall through to a new profile
+    return null;
   }
-  const pick = <T,>(xs: T[]) => xs[Math.floor(Math.random() * xs.length)];
-  const me: Me = {
-    id: `w-${randomId(10)}`,
-    token: randomId(24),
-    name: `${pick(FIRST)} ${pick(LAST)}`,
-    color: pick(COLORS),
-    theme: pick(THEMES),
-  };
-  saveMe(me);
-  return me;
 }
 
-export function saveMe(me: Me) {
+export function forgetOldProfile() {
   try {
-    localStorage.setItem(KEY, JSON.stringify(me));
+    localStorage.removeItem(OLD_PROFILE);
   } catch {
-    // unsaved profile: a new one next time
+    // nothing to forget
   }
 }
 
 type Handler<T extends ServerMsg["t"]> = (m: Extract<ServerMsg, { t: T }>) => void;
 
-/** One WebSocket to the island hub. The game keeps working when it is down; it just stays solo. */
+/**
+ * One WebSocket to the island hub, signed in by the session cookie. The game keeps working when it
+ * is down; it just stays solo.
+ */
 export class Net {
   private ws: WebSocket | null = null;
   private handlers = new Map<string, ((m: ServerMsg) => void)[]>();
@@ -55,7 +41,7 @@ export class Net {
   online = false;
   onStatus: (online: boolean) => void = () => {};
 
-  constructor(private me: Me) {
+  constructor() {
     this.connect();
   }
 
@@ -66,7 +52,6 @@ export class Net {
     ws.onopen = () => {
       this.retry = 1000;
       this.online = true;
-      this.raw({ t: "hello", profile: { id: this.me.id, name: this.me.name, color: this.me.color, hat: this.me.hat }, token: this.me.token });
       if (this.island) this.raw({ t: "enter", island: this.island });
       this.onStatus(true);
     };
@@ -82,6 +67,8 @@ export class Net {
       for (const h of hs) h(m);
     };
     ws.onclose = () => {
+      // signed out elsewhere, or the session ran out: back to the sign-in page
+      if (!this.online) void fetch("/api/me", { cache: "no-store" }).then((r) => r.status === 401 && location.reload(), () => {});
       const was = this.online;
       this.online = false;
       if (was) this.onStatus(false);

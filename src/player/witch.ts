@@ -2,6 +2,7 @@ import { Box3, Euler, Group, IcosahedronGeometry, Mesh, MeshToonMaterial, Object
 import type { HatStyle } from "../../shared/protocol";
 import { loadGltf } from "../core/assets";
 import { applyPalette, toon } from "../render/toon";
+import { type Ground, flat } from "../world/ground";
 import type { WalkMask } from "../world/walkmask";
 
 const SCALE = 1.05;
@@ -40,6 +41,8 @@ export class Witch {
   sitting = false;
   private sitBlend = 0;
   onFootstep: (at: Vector3, running: boolean) => void = () => {};
+  /** the island's ground height, for every witch (you, visitors, keepers, townsfolk) */
+  static ground: Ground = flat;
 
   private constructor(model: Object3D) {
     this.model = model;
@@ -122,6 +125,7 @@ export class Witch {
     const k = 1 - Math.exp(-dt * 10);
     this.position.x += (pose.x - this.position.x) * k;
     this.position.z += (pose.z - this.position.z) * k;
+    this.position.y = Witch.ground(this.position.x, this.position.z);
     let d = pose.yaw - this.root.rotation.y;
     d = Math.atan2(Math.sin(d), Math.cos(d));
     this.root.rotation.y += d * k;
@@ -158,6 +162,8 @@ export class Witch {
       p.z += step.z;
       this.velocity.x = 0;
     } else this.velocity.set(0, 0, 0);
+    // sitting (and swinging) places her itself
+    if (!this.sitting) p.y = Witch.ground(p.x, p.z);
 
     const v = this.velocity.length();
     if (v > 0.15) {

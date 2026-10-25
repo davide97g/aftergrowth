@@ -1,4 +1,5 @@
-import { Camera, OrthographicCamera, Plane, Raycaster, Scene, Vector2, Vector3 } from "three";
+import { Camera, OrthographicCamera, Raycaster, Scene, Vector2, Vector3 } from "three";
+import { hitGround } from "../world/ground";
 import { sound } from "../audio/sound";
 import { type CharmSpell, ITEMS } from "../../shared/items";
 import { type Save, count, give, take } from "../game/state";
@@ -31,7 +32,6 @@ export class Magic {
   private grimoire: Grimoire;
   private decals: GlyphDecal[] = [];
   private ray = new Raycaster();
-  private ground = new Plane(new Vector3(0, 1, 0), 0);
   readonly contraptions: Contraptions;
 
   private constructor(
@@ -97,7 +97,7 @@ export class Magic {
       this.hud.toast("The ink bottle is empty", "Pick flowers and brew ink at the cauldron by the cottage.");
       return;
     }
-    const p = this.witch.position.clone().setY(0.6).project(this.camera);
+    const p = this.witch.position.clone().setY(this.witch.position.y + 0.6).project(this.camera);
     this.overlay.open(((p.x + 1) / 2) * innerWidth, ((1 - p.y) / 2) * innerHeight);
     this.witch.drawing = true;
     document.getElementById("btn-draw")!.setAttribute("aria-pressed", "true");
@@ -112,8 +112,7 @@ export class Magic {
   private groundAt(p: P): Vector3 | null {
     const ndc = new Vector2((p.x / innerWidth) * 2 - 1, -(p.y / innerHeight) * 2 + 1);
     this.ray.setFromCamera(ndc, this.camera);
-    const hit = new Vector3();
-    return this.ray.ray.intersectPlane(this.ground, hit) ? hit : null;
+    return hitGround(this.ray.ray, (x, z) => this.world.ground(x, z));
   }
 
   private worldRadius(px: number) {

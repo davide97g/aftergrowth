@@ -50,7 +50,7 @@ export class Weather {
   private seedDrop(i: number, around: Vector3, anyHeight = false) {
     const x = around.x + (Math.random() - 0.5) * BOX * 2;
     const z = around.z + (Math.random() - 0.5) * BOX * 2;
-    const y = anyHeight ? Math.random() * 14 - 4 : 10 + Math.random() * 2;
+    const y = around.y + (anyHeight ? Math.random() * 14 - 4 : 10 + Math.random() * 2);
     this.pos.set([x, y, z, x + 0.06, y + 0.5, z - 0.06], i * 6);
   }
 
@@ -105,7 +105,7 @@ export class Weather {
       this.pos[o + 4] -= fall;
       this.pos[o] += drift;
       this.pos[o + 3] += drift;
-      if (this.pos[o + 1] < -6 || Math.abs(this.pos[o] - focus.x) > BOX || Math.abs(this.pos[o + 2] - focus.z) > BOX) this.seedDrop(i, focus);
+      if (this.pos[o + 1] < focus.y - 6 || Math.abs(this.pos[o] - focus.x) > BOX || Math.abs(this.pos[o + 2] - focus.z) > BOX) this.seedDrop(i, focus);
     }
     this.drops.geometry.attributes.position.needsUpdate = true;
   }

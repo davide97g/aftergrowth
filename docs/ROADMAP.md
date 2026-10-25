@@ -4,7 +4,9 @@
 
 - **Hosted on one homelab box** (`deploy/README.md`): one container, one JSON file of state, no
   replicas. Back it up; a disk failure loses every island.
-- **No real accounts.** Identity is a secret token in the browser; clearing site data makes a new witch.
+- **Accounts are minimal.** No email verification and no password reset yet: a forgotten password
+  means a new witch.
+- **Friends are by code.** No search by name, no blocking beyond unfriending.
 - **Reloads.** Travelling, visiting and saving the editor reload the page (behind the portal veil or
   a loading screen).
 - **Editor is permissive.** Objects can overlap each other.
@@ -30,6 +32,7 @@ Medium:
 - Sound: a mixing pass on real speakers; a music track outside the cottage.
 
 Large:
-- Hosting with accounts, and live travel without a page reload.
+- Live travel without a page reload.
+- Password reset by email; signing in with a passkey.
 - Shared glyphs in multiplayer: one witch draws the sigil, another closes the seal.
 - Quests or letters from NPC witches that teach new sigils.

@@ -6,7 +6,9 @@ How the code fits together, the data it saves and sends, and how to add things.
 
 `main.ts` → `game/game.ts startGame()`:
 
-1. **Who and where.** `net/net.ts loadMe()` reads the local profile; `Net` opens the WebSocket.
+0. **Signed in.** `main.ts` asks `/api/me` (`net/account.ts`); without a session it shows the
+   sign-in page first. The answer carries your profile and your save.
+1. **Who and where.** `Net` opens the WebSocket (the session cookie signs it in).
    `game/arrival.ts` reads `?island=` and `?via=portal`, joins the island's room and, when visiting,
    waits for the host's snapshot.
 2. **Theme and layout.** `core/palette.ts setTheme()` swaps palette tokens before any material exists.
@@ -36,12 +38,58 @@ parameters; every system is built once per load from data.
 - Static, numerous things (grass, flowers, rows) are drawn with `core/assets.ts scatter()`, one
   `InstancedMesh` per material.
 - The cottage interior is its own `Scene`; the composer's render pass switches scenes.
+- `render/cut.ts`: `cutToon(token)` is the toon material plus a dithered hole around the witch
+  wherever it stands between her and the camera. The kingdom's buildings and walls use it.
+- Wind tokens (`grass-dark`, `foliage`…) bend by their local height: never use them for big static
+  meshes in world coordinates (the kingdom's hill uses `turf`).
+
+## Ground height
+
+Every island has a `ground(x, z)`: 0 on flat islands, the hill in the kingdom. The witch, peers and
+keepers (`Witch.ground`), clicks (`world/ground.ts hitGround`), glyphs, spells (lifted per cast),
+glyph decals, prompts, name tags, birds, bunnies, butterflies, fireflies and rain all follow it. The
+walk mask stays 2D: cliffs are holes, and it has oriented boxes (`addBox`) for houses and walls.
+
+## Aetherhold (`kingdom/`)
+
+- `plan.ts` is the whole city as pure data, no three.js, so tests can walk it: the hill (rings
+  around the palace, `hill(d)`), the ramps and stairs (`RAMPS`, `groundAt` = hill or ramp), streets,
+  plazas, lots (landmarks first, then houses packed along every street and backfilled behind them),
+  props (as a layout), trees, the curtain wall, walk-mask holes/boxes/circles, keeper and activity
+  spots, places for the map, townsfolk routes, waterfalls. Seeded, so it's the same city everywhere.
+- `city.ts` turns the plan into meshes merged per palette token: the hill (a mesh in rings around
+  the palace, so every cliff lines up with a ring of vertices; it dips under ramp walls), retaining
+  walls, ramps, paving, houses (windows only on the faces the camera sees), the tavern, Arcanum,
+  bell tower, palace, gatehouse, curtain wall, waterfalls, floating islets, the crystal and its rings,
+  ley lines. About 40 draw calls for the whole city.
+- `world.ts`: `KingdomWorld extends IslandWorld`, overriding the terrain, walk mask, meadow, places
+  and `ground()`; props and the portal islet work as on any island.
+- `kingdom.ts`: royal shops (`ROYAL_SHOPS`, through the usual `ShopPanel`), the tavern and steward
+  panel, the fountain, the bell, the spell range (hooked to `magic.onCast`), townsfolk, crowd level.
+  Its save lives in `state.kingdom`.
 
 ## Data
 
-### Save (`game/state.ts`, localStorage `af.save.v1`)
+### Accounts (`server/accounts.ts`, `net/account.ts`)
 
-Coins, ink, the `bag` (every carried item by id, see below), tool levels (can, bottle, cauldron),
+Better Auth with email and password (no verification), on SQLite (`node:sqlite`, file
+`aftergrowth.db` next to `world.json`). Its tables are migrated at start. The game's own tables sit in
+the same database: `profile` (hat colour and shape, island theme, a six-letter friend code), `save`
+(the whole save as JSON), `friend` (one row per pair; `accepted` once the other side agrees) and
+`portal` (owner → guest: the guest may visit). `/api/auth/*` is Better Auth; `/api/me` returns the
+profile and save; `PUT`/`DELETE /api/save` store or erase it. In development the same handler is a
+Vite middleware. The session secret comes from `BETTER_AUTH_SECRET` or is made once in `auth-secret`.
+
+Islands are private: the hub refuses `enter`, `water`, `gift` and `feed` for someone else's island
+unless its owner opened their portal to you; closing it sends a guest who is there home (`closed`).
+The first account that signs in on a browser from before accounts takes that browser's old save and,
+with `claim` (old id + token), its island snapshot, deeds and stall listings.
+
+### Save (`game/state.ts`, on the server)
+
+Kept on the server per account (`/api/save`), sent every 5 seconds when it changed, and with
+`keepalive` when the page is leaving. The browser keeps a copy (`af.save.<user>`) marked unsynced
+until the server confirms it, and plays that copy if a reload beat the upload. Contents: coins, ink, the `bag` (every carried item by id, see below), tool levels (can, bottle, cauldron),
 the 12 plots (crop, growth hours, wet hours, overgrown), the 3 stone inscriptions, the shed, paid-for
 land, mailbox gifts, beehive honey, day and hour, and your island layout. `load()` migrates older
 saves: missing fields are filled in, and the old separate `seeds`/`harvest`/`flowers`/`goods`
@@ -85,16 +133,17 @@ shore, channel to the nearest edge, waterfall, lilies, stones).
 
 One WebSocket on `/net`, JSON messages.
 
-- Client → server: `hello` (profile + secret token), `enter` (island room), `pose` (10 Hz),
-  `publish` (your island snapshot), `atlas`, `water`, `gift`, `feed`, `say`, `spell`, `ack`, and for
-  stalls `listings`, `list`, `unlist`, `buy`.
-- Server → client: `welcome` (deeds waiting for you), `atlas`, `island` (a snapshot), `peers`,
-  `joined`, `left`, `pose`, `deed`, `say`, `spell`, and for stalls `listings`, `listed`, `bought`.
+- Client → server: `profile` (name, hat, theme), `claim`, `enter` (island room), `pose` (10 Hz),
+  `publish` (your island snapshot), `atlas`, `water`, `gift`, `feed`, `say`, `spell`, `ack`; for
+  friends `friends`, `befriend` (code, someone on the same island, or answering a request),
+  `unfriend`, `portal` (open/close yours to a friend); for stalls `listings`, `list`, `unlist`, `buy`.
+- Server → client: `welcome` (your profile, deeds waiting for you), `friends` (list + a note),
+  `closed`, `atlas` (shared islands, yours, friends who opened their portal), `island` (a snapshot),
+  `peers`, `joined`, `left`, `pose`, `deed`, `say`, `spell`, and for stalls `listings`, `listed`, `bought`.
 - The server keeps one snapshot per island (name, colour, theme, plots, stones, layout) and the deeds
   done there while the owner was away (water, gift, feed, and the stall's sale and return). Deeds
   stay until the owner sends `ack`; each gets its own increasing time, since owners skip anything not
-  newer than what they last applied. Data in `data/world.json`. The token proves an id belongs to this
-  browser; there are no accounts.
+  newer than what they last applied. Data in `data/world.json`; who you are comes from the session.
 - **Stalls:** the server holds the listings (`store.listings`) and so the goods. `buy` shrinks the
   listing before anyone is answered, so two buyers never get the same goods; the buyer's coins are
   set aside on their side until `bought` arrives (and come back if it failed). Prices are checked
@@ -102,6 +151,17 @@ One WebSocket on `/net`, JSON messages.
   restarts the hub).
 - In development the hub runs inside Vite (`vite.config.ts`); in production `server/index.ts` serves
   `dist/` and the hub on one port.
+
+### The map (`ui/map.ts`, Tab)
+
+Two charts in one SVG, plus a sidebar. **World**: the shared islands at fixed spots, your home and
+friends' islands around them, each drawn from its real outline (`radii()` of its shape, size and
+seed, sent in the atlas); friends whose portal is closed are greyed with a lock. Clicking one leaves
+right away (`PortalTravel.depart(…, here)` opens the vortex where the witch stands). **This island**:
+the walk mask's ground, water and solids, projected the way the camera sees them, with a pin for
+every `world.places` entry; clicking a pin (or any ground) blinks her there behind a fade. The
+sidebar holds friend requests, friends with their portal switches, witches on this island you can
+befriend, and your name, hat colour and island theme.
 
 ## Assets
 
@@ -136,9 +196,15 @@ One WebSocket on `/net`, JSON messages.
   `magic/spells.ts`, an entry in `magic/grimoire.ts`, a repeat interval in `magic/contraptions.ts`.
   Add a test case.
 - **A message:** add it to `shared/protocol.ts`, handle it in `server/hub.ts` and `net/social.ts`.
+- **A kingdom building or district:** add a landmark lot or a street in `kingdom/plan.ts` (houses fill
+  in around it), draw it in `kingdom/city.ts`, give it a place for the map; `npm test` tells you if
+  anything became unreachable.
 
 ## Testing
 
 `npm run check` runs the typecheck and the tests in `tests/` (Node's built-in runner, TypeScript run
 directly): glyph recognition on noisy drawings, and island layouts (essentials present, objects stay
-on every shape and size, sanitizing). Visual changes are checked in the browser.
+on every shape and size, sanitizing), and the kingdom (`tests/kingdom.test.ts`: flood-fills its walk
+mask from the gate and checks every place and keeper can be reached without stepping more than 0.25
+up or down between neighbouring cells, ramps meet both terraces, no prop stands in a building).
+Visual changes are checked in the browser.

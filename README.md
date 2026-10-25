@@ -24,8 +24,16 @@ npm start          # serve dist/ and the island server on :8787 (PORT, DATA env 
 npm run assets     # rebuild public/assets with Blender (raw packs: see CREDITS.md)
 ```
 
+Everyone signs in (email and password, no verification) and their island and save live on the
+server, so a witch can play from any browser. Islands are private: two witches become friends (by
+friend code, or by meeting on a shared island) and each can then open their portal to the other.
+
 Useful URL parameters while developing: `?t=18` start at 18:00, `?weather=rain` force weather,
-`?island=<id>` visit an island, `?island=commons` the shared island, `?island=market` the market.
+`?island=<id>` visit an island (yours, or a friend's whose portal is open to you),
+`?island=commons` the shared island, `?island=market` the market, `?island=kingdom` Aetherhold, the
+royal city. `?at=<place>` starts at one of the island's map places (`square`, `tavern`, `range`,
+`palace`… in the kingdom), `?zoom=0.5` starts zoomed out, and `?fps` shows frames per second, draw
+calls and triangles in the tab title. The dev server keeps accounts in `data/aftergrowth.db`.
 
 ## Controls
 
@@ -39,6 +47,7 @@ Useful URL parameters while developing: `?t=18` start at 18:00, `?weather=rain` 
 | Seeds | 1–6 |
 | Say a phrase | T |
 | Edit your island | B |
+| Map, friends, travel | Tab (click a place or an island to go there at once) |
 | Zoom | scroll / pinch |
 | Satchel | I |
 | Mute | M (or the clock panel) |
@@ -55,7 +64,7 @@ src/
     arrival.ts       which island this page load is on (home, a visit, the commons)
     stage.ts         renderer, sky, sun, post-processing
     travel.ts        portal departure / arrival animation
-    cottage.ts       going inside, sleeping
+    cottage.ts       going inside rooms (the cottage, the palace hall), sleeping
     rest.ts          sitting on benches, swings, the armchair
     editing.ts       opening and saving the island editor
     interact.ts      "F to …" prompts and click-to-walk-then-use
@@ -68,13 +77,15 @@ src/
   player/            the witch (procedural animation)
   farm/              plots, wild flowers, cauldron, market crate, garden objects (wells, hives, seats)
   market/            the Lantern Market: shops, prices, shop panel, keepers
+  kingdom/           Aetherhold, the royal city: its plan (hill, streets, lots), meshes, world, life
   magic/             glyph recognizer, seal rules, ink overlay, spells, contraptions, grimoire
-  net/               profile, WebSocket client, other players, atlas, mailbox
+  net/               account (sign-in page), WebSocket client, other players, mailbox
   house/             cottage interior, music box
   fx/                portal veil and ground circle, tweens
-  ui/                HUD, fade, styles
+  ui/                HUD, the map (world chart, island chart, friends), fade, styles
   audio/             every sound and the theme song, synthesised with Web Audio
-server/              island hub (WebSocket rooms, snapshots, deeds) + production server
+server/              accounts (Better Auth on SQLite, saves, friends, portals), island hub (WebSocket
+                     rooms, snapshots, deeds) + production server
 shared/              protocol types, items and daily prices, the colour palette (game, server, Blender)
 tools/blender/       asset builders: props, the chibi witch, furniture; preview tools
 tests/               glyph recognizer, island layout, economy and market tests

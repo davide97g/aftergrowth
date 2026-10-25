@@ -1,20 +1,19 @@
 import { Camera, Mesh, Object3D, Scene, Vector3 } from "three";
-import { type AtlasEntry, type Deed, type Gift, type HatStyle, HUB_ID, type IslandSnap, MARKET_ID, PHRASES, type Pose, type Profile } from "../../shared/protocol";
+import { type Deed, type Gift, type HatStyle, type IslandSnap, PHRASES, type Pose, type Profile } from "../../shared/protocol";
 import type { Action } from "../game/interact";
 import { ITEMS, isItem } from "../../shared/items";
 import { addMeal } from "../farm/livestock";
 import { CROPS, CROP_IDS, type CropId, FLOWER_COLORS, type FlowerColor, type ItemId, type Save, count, give, take } from "../game/state";
 import type { Hud } from "../ui/hud";
 import { Witch } from "../player/witch";
-import { COLORS, type Me, type Net, THEMES, saveMe } from "./net";
+import type { Me } from "./account";
+import type { Net } from "./net";
 
 interface Peer { profile: Profile; witch: Witch | null; pose: Pose | null; tag: HTMLElement; bubbleUntil: number }
 
-const THEME_NAMES: Record<string, string> = { meadow: "Meadow", blossom: "Blossom", autumn: "Autumn", mint: "Mint" };
-
 /**
- * Everything multiplayer: other witches on this island, the portal's atlas, the mailbox,
- * publishing your island for visitors, and the deeds visitors left while you were away.
+ * Everything multiplayer on this island: other witches, the mailbox, publishing your island for
+ * visitors, and the deeds visitors left while you were away. Friends and travel are on the map.
  */
 export class Social {
   private peers = new Map<string, Peer>();
@@ -74,7 +73,16 @@ export class Social {
       m.island.plots.forEach((p, i) => Object.assign(this.host!.plots[i] ?? {}, p, { locked: !!p.locked }));
     });
     net.on("deed", (m) => this.applyDeeds([m.deed], true));
-    net.on("welcome", (m) => this.applyDeeds(m.deeds, false));
+    net.on("welcome", (m) => {
+      // renamed or recoloured on another device since this page loaded
+      if (m.profile.name !== this.me.name || m.profile.color !== this.me.color) this.updateMe({ name: m.profile.name, color: m.profile.color }, false);
+      this.applyDeeds(m.deeds, false);
+    });
+    net.on("closed", (m) => {
+      if (m.island !== this.islandId) return;
+      this.hud.toast("The portal closed", `${this.host?.name ?? "The owner"} closed their portal. Home you go.`);
+      setTimeout(() => this.onTravel(null), 1800);
+    });
     net.onStatus = (online) => {
       document.body.classList.toggle("online", online);
       if (!online) for (const p of [...this.peers.keys()]) this.drop(p);
@@ -90,8 +98,6 @@ export class Social {
       if ((e.target as HTMLElement).tagName === "INPUT") return;
       if (e.code === "KeyT") this.toggleSay();
     });
-    document.getElementById("atlas-close")!.addEventListener("click", () => this.openAtlas(false));
-    document.getElementById("atlas")!.addEventListener("click", (e) => this.onAtlasClick(e));
   }
 
   // ---------- peers ----------
@@ -268,94 +274,24 @@ export class Social {
     };
   };
 
-  // ---------- portal and atlas ----------
-
-  portal(pos: Vector3) {
-    return (near: Vector3): Action | null => {
-      if (Math.hypot(pos.x - near.x, pos.z - near.z) > 2.2) return null;
-      return { pos, reach: 2.2, label: "Step into the portal", act: () => this.openAtlas(true), priority: 1.5 };
-    };
+  /** The witches standing on this island with you, and where. */
+  others(): (Profile & { at: Vector3 | null })[] {
+    return [...this.peers.values()].map((p) => ({ ...p.profile, at: p.witch?.position ?? null }));
   }
 
-  openAtlas(open: boolean) {
-    const el = document.getElementById("atlas")!;
-    el.hidden = !open;
-    if (!open) return;
-    this.renderAtlas(null);
-    if (this.net.online) {
-      this.net.send({ t: "atlas" });
-      void this.net.next("atlas", 3000).then((m) => this.renderAtlas(m?.islands ?? []));
-    }
-  }
-
-  private renderAtlas(islands: AtlasEntry[] | null) {
-    const ago = (t: number) => {
-      const m = Math.round((Date.now() - t) / 60000);
-      return m < 2 ? "just now" : m < 60 ? `${m} min ago` : m < 1440 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 1440)} d ago`;
-    };
-    const row = (e: AtlasEntry) => {
-      const here = e.id === this.islandId;
-      const status = e.id === HUB_ID || e.id === MARKET_ID ? `${e.here} here now` : e.online ? `online${e.here ? ` · ${e.here} here` : ""}` : `away · ${ago(e.lastSeen)}`;
-      return `<li><i style="background:${e.color}"></i><span><strong></strong><em>${e.id === MARKET_ID ? "Six shops, new prices daily" : `${THEME_NAMES[e.theme] ?? ""} island`} · ${status}</em></span>${here ? `<b>you are here</b>` : `<button type="button" data-go="${e.id}">Travel</button>`}</li>`;
-    };
-    let list: string;
-    if (!this.net.online) list = `<p class="quiet">The portal is quiet: the island server is offline. You can still go home.</p>`;
-    else if (!islands) list = `<p class="quiet">The portal shimmers…</p>`;
-    else {
-      const others = islands.filter((e) => e.id !== this.me.id);
-      list = `<ul class="islands">${others.map(row).join("")}</ul>${others.length < 2 ? `<p class="quiet">No other witches yet. Open the game in another browser to visit yourself.</p>` : ""}`;
-    }
-    const home = this.visiting ? `<button type="button" class="home" data-go="">Go home to ${this.me.name}'s island</button>` : "";
-    const swatches = COLORS.map((c) => `<button type="button" class="swatch" data-color="${c}" style="background:${c}" aria-label="Hat colour ${c}" aria-pressed="${c === this.me.color}"></button>`).join("");
-    const themes = THEMES.map((t) => `<button type="button" data-theme="${t}" aria-pressed="${t === this.me.theme}">${THEME_NAMES[t]}</button>`).join("");
-    document.getElementById("atlas-body")!.innerHTML = `
-      ${home}
-      <section><h3>Islands</h3>${list}</section>
-      <section><h3>You</h3>
-        <label for="me-name">Name</label>
-        <input id="me-name" maxlength="24" value="">
-        <div class="row"><span>Hat</span>${swatches}</div>
-        <div class="row"><span>Your island</span>${themes}</div>
-      </section>`;
-    const strong = document.querySelectorAll("#atlas .islands strong");
-    islands?.filter((e) => e.id !== this.me.id).forEach((e, i) => (strong[i].textContent = e.name));
-    const input = document.getElementById("me-name") as HTMLInputElement;
-    input.value = this.me.name;
-    input.addEventListener("change", () => this.updateMe({ name: input.value.trim().slice(0, 24) || this.me.name }));
-  }
-
-  private updateMe(patch: Partial<Me>) {
+  /** Change your name, hat or island theme; `tell` sends it to the server. */
+  updateMe(patch: Partial<Pick<Me, "name" | "color" | "hat" | "theme">>, tell = true) {
     Object.assign(this.me, patch);
-    saveMe(this.me);
     this.myTag.querySelector(".name")!.lastChild!.textContent = this.me.name;
     (this.myTag.querySelector(".name i") as HTMLElement).style.background = this.me.color;
-    this.net.send({ t: "hello", profile: { id: this.me.id, name: this.me.name, color: this.me.color, hat: this.me.hat }, token: this.me.token });
+    if (!tell) return;
+    this.net.send({ t: "profile", ...patch });
     this.publish(true);
   }
 
   /** Put on another hat shape: saved in your profile, seen by others the next time they meet you. */
   wearHat(hat: HatStyle) {
     this.updateMe({ hat });
-  }
-
-  private onAtlasClick(e: MouseEvent) {
-    const t = e.target as HTMLElement;
-    const go = t.closest("button[data-go]") as HTMLButtonElement | null;
-    if (go) return this.onTravel(go.dataset.go || null);
-    const color = t.closest("button[data-color]") as HTMLButtonElement | null;
-    if (color) {
-      this.updateMe({ color: color.dataset.color! });
-      this.renderAtlas(null);
-      this.openAtlas(true);
-      this.hud.toast("New hat colour", "Other witches see it now. Your own hat changes next time you travel.");
-      return;
-    }
-    const theme = t.closest("button[data-theme]") as HTMLButtonElement | null;
-    if (theme) {
-      this.updateMe({ theme: theme.dataset.theme as Me["theme"] });
-      if (!this.visiting) this.onTravel(null);
-      else this.openAtlas(true);
-    }
   }
 
   // ---------- per frame ----------
@@ -384,11 +320,13 @@ export class Social {
     for (const p of this.peers.values()) {
       if (p.witch && p.pose) p.witch.follow(dt, p.pose);
       if (p.witch) this.place(p.tag, p.witch.position, now < p.bubbleUntil);
+      // indoors the others are out of sight
+      p.tag.hidden = !!stand;
     }
   }
 
   private place(tag: HTMLElement, at: Vector3, bubble: boolean) {
-    const p = at.clone().setY(2.3).project(this.camera);
+    const p = at.clone().setY(at.y + 2.3).project(this.camera);
     tag.style.transform = `translate(${((p.x + 1) / 2) * innerWidth}px, ${((1 - p.y) / 2) * innerHeight}px) translate(-50%, -100%)`;
     (tag.querySelector(".bubble") as HTMLElement).hidden = !bubble;
     // your own tag only shows a bubble, never your name

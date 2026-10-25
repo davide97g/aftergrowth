@@ -1,5 +1,5 @@
 /**
- * Production server: serves the built game from dist/ and the island hub on /net.
+ * Production server: serves the built game from dist/, accounts and saves on /api, the island hub on /net.
  * Usage: npm run build && npm start   (PORT, DATA env vars optional)
  */
 import { createReadStream, existsSync, statSync } from "node:fs";
@@ -14,12 +14,14 @@ const TYPES: Record<string, string> = {
   ".glb": "model/gltf-binary", ".png": "image/png", ".jpg": "image/jpeg", ".svg": "image/svg+xml",
 };
 
-const http = createServer((req, res) => {
+let api: Awaited<ReturnType<typeof attachHub>> | null = null;
+const http = createServer(async (req, res) => {
+  if (api && (await api(req, res))) return;
   const path = normalize(decodeURIComponent((req.url ?? "/").split("?")[0])).replace(/^(\.\.[/\\])+/, "");
   let file = join(root, path);
   if (!file.startsWith(root) || !existsSync(file) || statSync(file).isDirectory()) file = join(root, "index.html");
   res.writeHead(200, { "content-type": TYPES[extname(file)] ?? "application/octet-stream" });
   createReadStream(file).pipe(res);
 });
-attachHub(http, process.env.DATA ?? join(import.meta.dirname, "..", "data", "world.json"));
+api = await attachHub(http, process.env.DATA ?? join(import.meta.dirname, "..", "data", "world.json"));
 http.listen(port, () => console.log(`Aftergrowth on http://localhost:${port}`));

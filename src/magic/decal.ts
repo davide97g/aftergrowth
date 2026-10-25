@@ -87,7 +87,7 @@ export class GlyphDecal {
     const geo = new PlaneGeometry(worldRadius * 2.2, worldRadius * 2.2);
     geo.rotateX(-Math.PI / 2);
     this.mesh = new Mesh(geo, this.mat);
-    this.mesh.position.copy(at).setY(0.05);
+    this.mesh.position.copy(at).setY(at.y + 0.05);
     // texture "up" follows the camera's up on the ground, so the glyph lies the way it was drawn
     this.mesh.rotation.y = Math.PI / 4;
     this.mesh.renderOrder = 5;

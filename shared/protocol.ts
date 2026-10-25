@@ -4,6 +4,8 @@ export type Theme = "meadow" | "blossom" | "autumn" | "mint";
 export const HUB_ID = "commons";
 /** the Lantern Market: shared like the commons, with shops */
 export const MARKET_ID = "market";
+/** Aetherhold, the royal city: the seat of magic and power, shared by everyone */
+export const KINGDOM_ID = "kingdom";
 
 export type HatStyle = "classic" | "wide" | "tall" | "crown";
 export const HAT_STYLES: HatStyle[] = ["classic", "wide", "tall", "crown"];
@@ -25,6 +27,10 @@ export interface IslandSnap {
   updated: number;
 }
 
+/** An island's outline, enough to draw it on the world map (see src/island/shapes.ts). */
+export interface Outline { shape: string; size: number; seed: number }
+
+/** A place the portal can take you: the shared islands, and friends who opened their portal to you. */
 export interface AtlasEntry {
   id: string;
   name: string;
@@ -34,6 +40,21 @@ export interface AtlasEntry {
   /** players currently standing on it */
   here: number;
   lastSeen: number;
+  outline?: Outline;
+}
+
+/** Someone you are friends with, or a request either way. */
+export interface FriendEntry {
+  id: string;
+  name: string;
+  color: string;
+  theme: Theme;
+  status: "friend" | "incoming" | "outgoing";
+  /** they opened their portal to you: you can visit */
+  open: boolean;
+  /** you opened yours to them */
+  mine: boolean;
+  online: boolean;
 }
 
 export type Gift = { from: string; kind: "flower"; color: string } | { from: string; kind: "crop"; crop: string };
@@ -68,7 +89,16 @@ export interface Pose { x: number; z: number; yaw: number; speed: number; drawin
 export const PHRASES = ["Hello!", "What a lovely island!", "Thank you!", "Look at this!", "Good night!", "Let's farm!"] as const;
 
 export type ClientMsg =
-  | { t: "hello"; profile: Profile; token: string }
+  /** change your name, hat colour, hat shape or island theme */
+  | { t: "profile"; name?: string; color?: string; hat?: HatStyle; theme?: Theme }
+  /** bring an island made before accounts (its old id and secret token) into your account */
+  | { t: "claim"; id: string; token: string }
+  | { t: "friends" }
+  /** by friend code, or the id of a witch standing on the same island */
+  | { t: "befriend"; code?: string; id?: string }
+  | { t: "unfriend"; id: string }
+  /** open or close your portal to a friend */
+  | { t: "portal"; id: string; open: boolean }
   | { t: "enter"; island: string }
   | { t: "pose"; pose: Pose }
   | { t: "publish"; island: IslandSnap }
@@ -86,7 +116,10 @@ export type ClientMsg =
   | { t: "ack"; upTo: number };
 
 export type ServerMsg =
-  | { t: "welcome"; deeds: Deed[] }
+  | { t: "welcome"; profile: Profile & { theme: Theme; code: string }; deeds: Deed[] }
+  | { t: "friends"; friends: FriendEntry[]; note?: string }
+  /** the owner closed their portal to you while you were on their island */
+  | { t: "closed"; island: string }
   | { t: "listings"; listings: Listing[] }
   /** answer to `list`: on failure the goods go back to the seller's satchel */
   | { t: "listed"; ok: boolean; item: string; qty: number; why?: string }

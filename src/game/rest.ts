@@ -1,5 +1,5 @@
 import { Vector3 } from "three";
-import type { Witch } from "../player/witch";
+import { Witch } from "../player/witch";
 import type { Hud } from "../ui/hud";
 import type { Action } from "./interact";
 
@@ -32,7 +32,8 @@ export class Rest {
     this.clock.speed = this.normalSpeed;
     this.onStand();
     const fwd = new Vector3(Math.sin(w.yaw), 0, Math.cos(w.yaw));
-    w.position.copy(this.base).setY(0).addScaledVector(fwd, 0.95);
+    w.position.copy(this.base).addScaledVector(fwd, 0.95);
+    w.position.y = Witch.ground(w.position.x, w.position.z);
   };
 
   /** Interaction provider: while sitting, F stands up. */
@@ -45,7 +46,7 @@ export class Rest {
     if (wish.lengthSq() > 0.05) this.standUp();
     if (swing && w.sitting) {
       const fwd = new Vector3(Math.sin(w.yaw), 0, Math.cos(w.yaw));
-      w.position.copy(this.base).addScaledVector(fwd, swing.forward).setY(swing.up);
+      w.position.copy(this.base).addScaledVector(fwd, swing.forward).setY(this.base.y + swing.up);
     }
     return new Vector3();
   }

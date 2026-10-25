@@ -425,6 +425,31 @@ class Sound {
     for (const [f, v] of [[1760, 0.04], [2637, 0.015], [4186, 0.008]] as const) this.tone(f, t, v, 1.1);
   }
 
+  /** The great bell of Aetherhold: a deep toll with a long, shimmering tail. */
+  greatBell() {
+    const t = this.now;
+    if (t === null) return;
+    for (const [f, v, r] of [[110, 0.09, 4.5], [220, 0.05, 3.5], [264, 0.03, 2.8], [330, 0.025, 2.2], [523, 0.012, 1.4]] as const) this.tone(f, t, v, r, "sine", this.outside);
+    this.burst(t, 0.08, 0.05, "bandpass", 1800, 2, this.outside);
+  }
+
+  /** A rune target at the spell range bursts. */
+  chime() {
+    const t = this.now;
+    if (t === null) return;
+    [0, 2, 4].forEach((k, i) => this.tone(PENTA[k] * 2, t + i * 0.05, 0.035, 0.5, "triangle"));
+  }
+
+  /** A few plucks from the tavern bard's lute. */
+  lute(notes = 8) {
+    const t = this.now;
+    if (t === null) return;
+    for (let i = 0; i < notes; i++) {
+      const f = PENTA[Math.floor(Math.random() * PENTA.length)] / (Math.random() < 0.3 ? 2 : 1);
+      this.tone(f, t + i * 0.22 + Math.random() * 0.04, 0.03, 0.7, "triangle", this.outside);
+    }
+  }
+
   /** Something picked up, harvested or bought. */
   pop() {
     const t = this.now;

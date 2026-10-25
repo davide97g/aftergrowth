@@ -34,7 +34,7 @@
           <button id="reset-save" type="button">Start over</button>
         </div>
       </div>
-      <div id="hint">WASD or click to walk · F to use · E to draw a glyph · G grimoire</div>
+      <div id="hint">WASD or click to walk · F to use · E to draw a glyph · Tab map</div>
       <div id="draw-hint">Draw a sigil, then close a circle around it · dots make it stronger · a line points it · Backspace erases · Esc puts the pen away</div>
       <div id="toast" role="status" hidden></div>
       <button id="prompt" type="button" hidden><kbd>F</kbd><span id="prompt-label"></span></button>
@@ -49,15 +49,12 @@
       </div>
       <div id="pop" hidden></div>
       <aside id="editor" hidden aria-label="Island editor"></aside>
-      <aside id="atlas" hidden aria-label="Portal atlas">
-        <header><h2>Portal</h2><button id="atlas-close" type="button" aria-label="Close portal">×</button></header>
-        <div id="atlas-body"></div>
-      </aside>
       <aside id="market" hidden aria-label="Market crate">
         <header><h2>Market crate</h2><button id="market-close" type="button" aria-label="Close market">×</button></header>
         <div id="market-body"></div>
       </aside>
       <div class="actions">
+        <button id="btn-map" type="button" title="Map and friends (Tab)"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 6.5l5.5-2 6 2 5.5-2v13l-5.5 2-6-2-5.5 2Z M9 4.5v13 M15 6.5v13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg><span>Map</span><kbd>Tab</kbd><span class="badge" hidden></span></button>
         <div class="say-wrap">
           <div id="say-menu" hidden></div>
           <button id="btn-say" type="button" title="Say something (T)"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5h16v10H10l-4.5 3.5v-3.5H4Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg><span>Say</span><kbd>T</kbd></button>
@@ -79,8 +76,44 @@
         <div id="grimoire-body"></div>
       </aside>
       <div id="stick" hidden><div id="stick-knob"></div></div>
+      <section id="map" hidden aria-label="Map">
+        <div class="map-chart">
+          <header>
+            <div class="tabs" role="tablist">
+              <button type="button" role="tab" data-view="here">This island</button>
+              <button type="button" role="tab" data-view="world">World</button>
+            </div>
+            <p>Click a place to go there · Tab closes</p>
+            <button id="map-close" type="button" aria-label="Close the map">×</button>
+          </header>
+          <svg id="map-svg" viewBox="0 0 1000 680" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Map"></svg>
+          <div id="map-tip" hidden></div>
+        </div>
+        <aside id="map-side" aria-label="Friends and you"></aside>
+      </section>
       <div id="fade"></div>
       <div id="loading">Gathering the island…</div>
+      <div id="auth" hidden>
+        <div class="card">
+          <h1>Aftergrowth</h1>
+          <p class="tagline">Farming and ink magic on floating sky-islands</p>
+          <div class="tabs" role="tablist">
+            <button type="button" role="tab" data-mode="in">Sign in</button>
+            <button type="button" role="tab" data-mode="up">New witch</button>
+          </div>
+          <form novalidate>
+            <label class="only-up" for="auth-name">Witch name</label>
+            <input class="only-up" id="auth-name" maxlength="24" autocomplete="nickname" placeholder="Mossy Wren" />
+            <label for="auth-email">Email</label>
+            <input id="auth-email" type="email" required autocomplete="email" />
+            <label for="auth-password">Password</label>
+            <input id="auth-password" type="password" required minlength="8" autocomplete="current-password" />
+            <p class="only-up hint">At least 8 characters. Your island lives on the server: sign in anywhere.</p>
+            <p class="error" role="alert" hidden></p>
+            <button type="submit">Enter</button>
+          </form>
+        </div>
+      </div>
     </div>
     <script type="module" src="/src/main.ts"></script>
   </body>

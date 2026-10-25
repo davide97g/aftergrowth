@@ -1,11 +1,12 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import type { Server } from "node:http";
-import { dirname } from "node:path";
+import type { IncomingMessage, Server, ServerResponse } from "node:http";
+import { dirname, join } from "node:path";
 import { type WebSocket, WebSocketServer } from "ws";
-import type { AtlasEntry, ClientMsg, Deed, IslandSnap, Listing, Pose, Profile, ServerMsg } from "../shared/protocol.ts";
+import type { AtlasEntry, ClientMsg, Deed, IslandSnap, Listing, Outline, Pose, Profile, ServerMsg } from "../shared/protocol.ts";
 import { CROPS, STALL, isItem, stallBounds } from "../shared/items.ts";
-import { HAT_STYLES, HUB_ID, MARKET_ID, PHRASES } from "../shared/protocol.ts";
+import { HUB_ID, KINGDOM_ID, MARKET_ID, PHRASES } from "../shared/protocol.ts";
 import { defaultHome, sanitizeLayout } from "../src/island/layout.ts";
+import { type Accounts, THEMES, body, json, openAccounts } from "./accounts.ts";
 
 const seedOf = (id: string) => {
   let h = 2166136261;
@@ -13,26 +14,41 @@ const seedOf = (id: string) => {
   return h >>> 0;
 };
 
-interface Client { ws: WebSocket; profile: Profile | null; island: string | null; pose: Pose | null }
+interface Client { ws: WebSocket; profile: Profile; island: string | null; pose: Pose | null }
 interface Stored { snap: IslandSnap; lastSeen: number; deeds: Deed[] }
+/** `tokens` are the secret tokens of islands made before accounts, until someone claims them */
 interface Store { islands: Record<string, Stored>; tokens: Record<string, string>; listings?: Listing[] }
 
-const THEMES = new Set(["meadow", "blossom", "autumn", "mint"]);
 const clean = (s: unknown, max: number) => String(s ?? "").replace(/[<>]/g, "").trim().slice(0, max);
-const isColor = (c: unknown) => typeof c === "string" && /^#[0-9a-fA-F]{6}$/.test(c);
-const isId = (id: unknown) => typeof id === "string" && /^[a-z0-9-]{4,40}$/.test(id);
+/** islands everyone may stand on */
+const SHARED = new Set([HUB_ID, MARKET_ID, KINGDOM_ID]);
+const SHARED_ATLAS: Omit<AtlasEntry, "here" | "lastSeen">[] = [
+  { id: KINGDOM_ID, name: "Aetherhold", color: "#8a6ad8", theme: "meadow", online: true },
+  { id: MARKET_ID, name: "Lantern Market", color: "#ffc94d", theme: "meadow", online: true },
+  { id: HUB_ID, name: "Blossom Commons", color: "#f28cc0", theme: "blossom", online: true },
+];
+
+const outlineOf = (snap: IslandSnap): Outline | undefined => {
+  const l = snap.layout as { shape?: string; size?: number; seed?: number } | undefined;
+  return l && typeof l.shape === "string" ? { shape: l.shape, size: Number(l.size) || 1, seed: Number(l.seed) || 0 } : undefined;
+};
 
 /**
- * The island server: one room per island. Live: poses, phrases, spells. Async: snapshots of each
- * island, and deeds (watering, gifts) kept for owners who are away.
+ * The island server: accounts and saves over HTTP, and one WebSocket room per island. Live: poses,
+ * phrases, spells. Async: snapshots of each island, and deeds (watering, gifts) kept for owners who
+ * are away. Islands are private: only friends the owner opened their portal to may visit.
+ *
+ * Returns the HTTP handler for /api; it answers false for anything else.
  */
-export function attachHub(http: Server, file: string) {
+export async function attachHub(http: Server, file: string) {
+  const accounts: Accounts = await openAccounts(process.env.AUTH_DB ?? join(dirname(file), "aftergrowth.db"));
   let store: Store = { islands: {}, tokens: {} };
   try {
     store = JSON.parse(readFileSync(file, "utf8")) as Store;
   } catch {
     // first run
   }
+  store.tokens ??= {};
   let saveTimer: ReturnType<typeof setTimeout> | null = null;
   const persist = () => {
     if (saveTimer) return;
@@ -44,20 +60,39 @@ export function attachHub(http: Server, file: string) {
   };
 
   const clients = new Set<Client>();
+  /** the dev server closed this hub to start a new one */
+  let stopped = false;
   const wss = new WebSocketServer({ noServer: true, maxPayload: 256 * 1024 });
   http.on("upgrade", (req, socket, head) => {
-    if (!req.url?.startsWith("/net")) return;
-    wss.handleUpgrade(req, socket, head, (ws) => wss.emit("connection", ws));
+    if (!req.url?.startsWith("/net") || stopped) return;
+    // only signed-in witches: the session cookie comes with the upgrade
+    void accounts.userOf(req).then((user) => {
+      const profile = user && accounts.profile(user);
+      if (!profile) {
+        socket.end("HTTP/1.1 401 Unauthorized\r\n\r\n");
+        return;
+      }
+      wss.handleUpgrade(req, socket, head, (ws) => welcome(ws, profile));
+    });
   });
 
   const send = (c: Client, m: ServerMsg) => c.ws.readyState === 1 && c.ws.send(JSON.stringify(m));
-  const room = (island: string | null, except?: Client) => [...clients].filter((c) => c.island === island && c !== except && c.profile);
-  const ownerOnline = (id: string) => [...clients].find((c) => c.profile?.id === id);
+  const room = (island: string | null, except?: Client) => [...clients].filter((c) => c.island === island && c !== except);
+  const ownerOnline = (id: string) => [...clients].some((c) => c.profile.id === id);
+  const connectionsOf = (id: string) => [...clients].filter((c) => c.profile.id === id);
 
   const leaveRoom = (c: Client) => {
-    if (!c.island || !c.profile) return;
+    if (!c.island) return;
     for (const o of room(c.island, c)) send(o, { t: "left", id: c.profile.id });
     c.island = null;
+  };
+
+  /** Tell a witch (every open tab) who their friends are now. */
+  const showFriends = (id: string, note?: string) => {
+    const conns = connectionsOf(id);
+    if (!conns.length) return;
+    const friends = accounts.friends(id).map((f) => ({ ...f, online: ownerOnline(f.id) }));
+    for (const c of conns) send(c, { t: "friends", friends, ...(note ? { note } : {}) });
   };
 
   // deeds are kept until the owner acknowledges them, so a half-closed socket never loses a gift
@@ -68,7 +103,33 @@ export function attachHub(http: Server, file: string) {
     const st = store.islands[owner];
     if (st) st.deeds = [...st.deeds, deed].slice(-60);
     // every open connection of the owner (a reload can leave an old one behind for a moment)
-    for (const c of clients) if (c.profile?.id === owner) send(c, { t: "deed", deed });
+    for (const c of connectionsOf(owner)) send(c, { t: "deed", deed });
+  };
+
+  /** Saves and the profile over HTTP; Better Auth answers everything under /api/auth. */
+  const api = async (req: IncomingMessage, res: ServerResponse): Promise<boolean> => {
+    const url = req.url ?? "";
+    if (url.startsWith("/api/auth")) {
+      await accounts.handler(req, res);
+      return true;
+    }
+    if (!url.startsWith("/api/")) return false;
+    const user = await accounts.userOf(req);
+    if (!user) return (json(res, 401, { error: "Sign in first." }), true);
+    const path = url.split("?")[0];
+    if (path === "/api/me" && req.method === "GET") {
+      const save = accounts.loadSave(user);
+      json(res, 200, { profile: accounts.profile(user), save: save ? JSON.parse(save.data) : null, updated: save?.updated ?? 0 });
+    } else if (path === "/api/save" && req.method === "PUT") {
+      const data = await body(req, 400_000);
+      const updated = data && accounts.storeSave(user, data);
+      if (updated) json(res, 200, { updated });
+      else json(res, 400, { error: "That save could not be kept." });
+    } else if (path === "/api/save" && req.method === "DELETE") {
+      accounts.dropSave(user);
+      json(res, 200, { ok: true });
+    } else json(res, 404, { error: "Nothing here." });
+    return true;
   };
 
   // ---------- stalls: the server holds listed goods, so they can't be spent twice ----------
@@ -89,43 +150,45 @@ export function attachHub(http: Server, file: string) {
   const expiry = setInterval(expire, 10 * 60_000);
   expiry.unref();
   // the dev server restarts the hub when its code changes: the old one must stop writing
-  http.on("close", () => clearInterval(expiry));
+  http.on("close", () => {
+    stopped = true;
+    clearInterval(expiry);
+    for (const c of clients) c.ws.terminate();
+    wss.close();
+    accounts.close();
+  });
   let nextListing = Date.now();
 
-  wss.on("connection", (ws) => {
-    const c: Client = { ws, profile: null, island: null, pose: null };
+  const welcome = (ws: WebSocket, profile: NonNullable<ReturnType<Accounts["profile"]>>) => {
+    const c: Client = { ws, profile: { id: profile.id, name: profile.name, color: profile.color, hat: profile.hat }, island: null, pose: null };
     clients.add(c);
+    const st = store.islands[profile.id];
+    send(c, { t: "welcome", profile, deeds: st?.deeds ?? [] });
+    if (st) st.lastSeen = Date.now();
+    persist();
+    // friends see you come online
+    for (const f of accounts.friends(profile.id)) showFriends(f.id);
+    showFriends(profile.id);
     ws.on("message", (raw) => {
+      if (stopped) return;
       let m: ClientMsg;
       try {
         m = JSON.parse(String(raw)) as ClientMsg;
       } catch {
         return;
       }
-      if (m.t === "hello") {
-        const p = m.profile;
-        if (!isId(p?.id) || typeof m.token !== "string" || m.token.length < 16) return ws.close();
-        const known = store.tokens[p.id];
-        if (known && known !== m.token) return ws.close(4001, "token");
-        store.tokens[p.id] = m.token;
-        c.profile = { id: p.id, name: clean(p.name, 24) || "Witch", color: isColor(p.color) ? p.color : "#4a5bb5", hat: HAT_STYLES.includes(p.hat!) ? p.hat : "classic" };
-        const st = store.islands[p.id];
-        send(c, { t: "welcome", deeds: st?.deeds ?? [] });
-        if (st) st.lastSeen = Date.now();
-        persist();
-        return;
-      }
-      if (!c.profile) return;
       const me = c.profile;
       switch (m.t) {
         case "enter": {
           if (typeof m.island !== "string") return;
+          // someone's island: only with their portal open to you
+          if (!SHARED.has(m.island) && !accounts.canVisit(me.id, m.island)) return send(c, { t: "island", island: null });
           leaveRoom(c);
           c.island = m.island;
           c.pose = null;
           send(c, { t: "peers", peers: room(c.island, c).map((o) => ({ profile: o.profile!, pose: o.pose })) });
           for (const o of room(c.island, c)) send(o, { t: "joined", profile: me });
-          if (m.island !== me.id && m.island !== HUB_ID && m.island !== MARKET_ID) send(c, { t: "island", island: store.islands[m.island]?.snap ?? null });
+          if (m.island !== me.id && !SHARED.has(m.island)) send(c, { t: "island", island: store.islands[m.island]?.snap ?? null });
           return;
         }
         case "pose": {
@@ -139,7 +202,7 @@ export function attachHub(http: Server, file: string) {
           const size = JSON.stringify(s).length;
           if (size > 400_000) return;
           const snap: IslandSnap = {
-            ...s, name: me.name, color: me.color, theme: THEMES.has(s.theme) ? s.theme : "meadow", updated: Date.now(),
+            ...s, name: me.name, color: me.color, theme: THEMES.includes(s.theme) ? s.theme : "meadow", updated: Date.now(),
             layout: s.layout ? sanitizeLayout(s.layout, defaultHome(seedOf(me.id))) : undefined,
           };
           const prev = store.islands[me.id];
@@ -149,19 +212,73 @@ export function attachHub(http: Server, file: string) {
           return;
         }
         case "atlas": {
-          const entries: AtlasEntry[] = Object.values(store.islands).map(({ snap, lastSeen }) => ({
-            id: snap.id, name: snap.name, color: snap.color, theme: snap.theme,
-            online: !!ownerOnline(snap.id), here: room(snap.id).length, lastSeen,
-          }));
-          entries.sort((a, b) => Number(b.online) - Number(a.online) || b.here - a.here || b.lastSeen - a.lastSeen);
-          const hub: AtlasEntry = { id: HUB_ID, name: "Blossom Commons", color: "#f28cc0", theme: "blossom", online: true, here: room(HUB_ID).length, lastSeen: Date.now() };
-          const market: AtlasEntry = { id: MARKET_ID, name: "Lantern Market", color: "#ffc94d", theme: "meadow", online: true, here: room(MARKET_ID).length, lastSeen: Date.now() };
-          send(c, { t: "atlas", islands: [hub, market, ...entries.slice(0, 60)] });
+          const shared: AtlasEntry[] = SHARED_ATLAS.map((e) => ({ ...e, here: room(e.id).length, lastSeen: Date.now() }));
+          const own = store.islands[me.id];
+          const mine: AtlasEntry[] = own ? [{ id: me.id, name: me.name, color: me.color, theme: own.snap.theme, online: true, here: room(me.id).length, lastSeen: Date.now(), outline: outlineOf(own.snap) }] : [];
+          const friends: AtlasEntry[] = accounts.friends(me.id).filter((f) => f.open && store.islands[f.id]).map((f) => {
+            const { snap, lastSeen } = store.islands[f.id];
+            return { id: f.id, name: f.name, color: f.color, theme: snap.theme, online: ownerOnline(f.id), here: room(f.id).length, lastSeen, outline: outlineOf(snap) };
+          });
+          send(c, { t: "atlas", islands: [...shared, ...mine, ...friends] });
+          return;
+        }
+        case "profile": {
+          void accounts.updateProfile(me.id, m).then((p) => {
+            if (!p) return;
+            for (const o of connectionsOf(me.id)) o.profile = { id: p.id, name: p.name, color: p.color, hat: p.hat };
+            const st = store.islands[me.id];
+            if (st) Object.assign(st.snap, { name: p.name, color: p.color, theme: p.theme });
+            persist();
+            for (const f of accounts.friends(me.id)) showFriends(f.id);
+          });
+          return;
+        }
+        case "claim": {
+          // an island from before accounts: its token proves it was made in this browser
+          if (typeof m.id !== "string" || !store.tokens[m.id] || store.tokens[m.id] !== m.token || store.islands[me.id]) return;
+          const old = store.islands[m.id];
+          if (old) store.islands[me.id] = { ...old, snap: { ...old.snap, id: me.id, name: me.name, color: me.color } };
+          delete store.islands[m.id];
+          delete store.tokens[m.id];
+          for (const l of listings()) if (l.seller === m.id) Object.assign(l, { seller: me.id, name: me.name, color: me.color });
+          persist();
+          return;
+        }
+        case "friends": {
+          showFriends(me.id);
+          return;
+        }
+        case "befriend": {
+          // by code, someone standing on the same island right now, or answering their request
+          const nearby = c.island && room(c.island, c).some((o) => o.profile.id === m.id);
+          const asked = accounts.friends(me.id).some((f) => f.id === m.id && f.status === "incoming");
+          const to = typeof m.code === "string" ? accounts.byCode(m.code) : typeof m.id === "string" && (nearby || asked) ? m.id : null;
+          if (!to) return showFriends(me.id, typeof m.code === "string" ? "No witch has that friend code." : "They have left this island.");
+          const r = accounts.befriend(me.id, to);
+          const them = accounts.profile(to)!.name;
+          showFriends(me.id, r === "self" ? "That's your own code." : r === "asked" ? `Asked ${them} to be friends.` : r === "friends" ? `You and ${them} are friends now.` : `You and ${them} already know each other.`);
+          if (r === "asked" || r === "friends") showFriends(to, r === "asked" ? `${me.name} would like to be friends.` : `${me.name} accepted: you are friends now.`);
+          return;
+        }
+        case "unfriend": {
+          if (typeof m.id !== "string") return;
+          accounts.unfriend(me.id, m.id);
+          kick(me.id, m.id);
+          kick(m.id, me.id);
+          showFriends(me.id);
+          showFriends(m.id);
+          return;
+        }
+        case "portal": {
+          if (typeof m.id !== "string" || !accounts.setPortal(me.id, m.id, !!m.open)) return;
+          if (!m.open) kick(me.id, m.id);
+          showFriends(me.id);
+          showFriends(m.id, m.open ? `${me.name} opened their portal to you.` : undefined);
           return;
         }
         case "water": {
           const st = store.islands[m.island];
-          if (!st || m.island === me.id || !Array.isArray(m.plots)) return;
+          if (!st || m.island === me.id || !accounts.canVisit(me.id, m.island) || !Array.isArray(m.plots)) return;
           for (const i of m.plots.slice(0, 32)) {
             const plot = st.snap.plots[i];
             if (!plot || !plot.crop) continue;
@@ -174,7 +291,7 @@ export function attachHub(http: Server, file: string) {
           return;
         }
         case "gift": {
-          if (!store.islands[m.island] || m.island === me.id) return;
+          if (!store.islands[m.island] || m.island === me.id || !accounts.canVisit(me.id, m.island)) return;
           const g = m.gift;
           const gift = g?.kind === "flower" ? { from: me.name, kind: "flower" as const, color: clean(g.color, 12) } : g?.kind === "crop" ? { from: me.name, kind: "crop" as const, crop: clean(g.crop, 12) } : null;
           if (!gift) return;
@@ -183,7 +300,7 @@ export function attachHub(http: Server, file: string) {
           return;
         }
         case "feed": {
-          if (!store.islands[m.island] || m.island === me.id || !(m.crop in CROPS)) return;
+          if (!store.islands[m.island] || m.island === me.id || !accounts.canVisit(me.id, m.island) || !(m.crop in CROPS)) return;
           deliver(m.island, { by: me.name, kind: "feed", trough: clean(m.trough, 48), crop: m.crop, at: Date.now() });
           persist();
           return;
@@ -253,12 +370,22 @@ export function attachHub(http: Server, file: string) {
       }
     });
     ws.on("close", () => {
-      leaveRoom(c);
       clients.delete(c);
-      if (c.profile && store.islands[c.profile.id]) {
-        store.islands[c.profile.id].lastSeen = Date.now();
+      if (stopped) return;
+      leaveRoom(c);
+      const id = c.profile.id;
+      if (store.islands[id]) {
+        store.islands[id].lastSeen = Date.now();
         persist();
       }
+      if (!ownerOnline(id)) for (const f of accounts.friends(id)) showFriends(f.id);
     });
-  });
+  };
+
+  /** Send a guest home from an island whose portal just closed to them. */
+  const kick = (owner: string, guest: string) => {
+    for (const c of connectionsOf(guest)) if (c.island === owner) send(c, { t: "closed", island: owner });
+  };
+
+  return api;
 }

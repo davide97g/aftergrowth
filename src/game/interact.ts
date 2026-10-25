@@ -100,7 +100,7 @@ export class Interactions {
     this.prompt.hidden = false;
     this.prompt.classList.toggle("info", !a.act);
     this.label.textContent = a.label;
-    const p = a.pos.clone().setY(1.4).project(this.camera);
+    const p = a.pos.clone().setY(a.pos.y + 1.4).project(this.camera);
     this.prompt.style.left = `${((p.x + 1) / 2) * innerWidth}px`;
     this.prompt.style.top = `${((1 - p.y) / 2) * innerHeight}px`;
   }

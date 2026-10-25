@@ -36,6 +36,10 @@ const ISLET_DIR = (() => {
 })();
 const ISLET_GAP = 5;
 
+/** A named spot the map shows and can take you to. `pos` is somewhere the witch can stand. */
+export interface Place { id: string; label: string; icon: PlaceIcon; pos: Vector3 }
+export type PlaceIcon = "home" | "farm" | "cauldron" | "water" | "portal" | "shop" | "tree" | "fountain" | "stall" | "tavern" | "castle" | "tower" | "gate" | "star";
+
 export interface World {
   mask: WalkMask;
   spawn: Vector3;
@@ -57,10 +61,14 @@ export interface World {
   portalPos: Vector3;
   portal: ShaderMaterial;
   bounds: { center: Vector3; radius: number };
+  /** named spots for the map */
+  places: Place[];
+  /** ground height under (x, z); 0 on flat islands */
+  ground(x: number, z: number): number;
 }
 
 /** Which island to build: every player's island has its own layout; the commons and the market have no farm. */
-export interface IslandSpec { kind: "home" | "commons" | "market"; layout: IslandLayout }
+export interface IslandSpec { kind: "home" | "commons" | "market" | "kingdom"; layout: IslandLayout }
 
 export function seedOf(id: string) {
   let h = 2166136261;
@@ -145,6 +153,7 @@ export class IslandWorld implements World {
   portalPos = new Vector3();
   portal: ShaderMaterial;
   bounds = { center: new Vector3(), radius: 20 };
+  places: Place[] = [];
   /** the placed objects' meshes, by layout id */
   readonly objects = new Map<string, Object3D>();
   /** campfire flames to flicker, swing seats to sway */
@@ -159,17 +168,19 @@ export class IslandWorld implements World {
     signs: Vector3[];
   } = { fill: [], seats: [], hives: [], scare: [], signs: [] };
 
-  private terrainG = new Group();
-  private objectsG = new Group();
-  private meadowG = new Group();
-  private surroundG = new Group();
-  private channel: Pt[] | null = null;
-  private islet = new Vector3();
-  private isletR: number[] = [];
-  private bridge: { b0: Vector3; b1: Vector3 } = { b0: new Vector3(), b1: new Vector3() };
-  private portalGroup: Group;
+  protected terrainG = new Group();
+  protected objectsG = new Group();
+  protected meadowG = new Group();
+  protected surroundG = new Group();
+  protected channel: Pt[] | null = null;
+  protected islet = new Vector3();
+  protected isletR: number[] = [];
+  protected bridge: { b0: Vector3; b1: Vector3 } = { b0: new Vector3(), b1: new Vector3() };
+  protected portalGroup: Group;
+  /** the portal islet sits off the edge this way */
+  protected isletDir = ISLET_DIR.clone();
 
-  private constructor(scene: Scene, public layout: IslandLayout, readonly kind: IslandSpec["kind"]) {
+  protected constructor(scene: Scene, public layout: IslandLayout, readonly kind: IslandSpec["kind"]) {
     scene.add(this.terrainG, this.objectsG, this.meadowG, this.surroundG);
     const portal = buildPortal();
     this.portal = portal.material;
@@ -187,6 +198,10 @@ export class IslandWorld implements World {
     return w;
   }
 
+  ground(_x: number, _z: number) {
+    return 0;
+  }
+
   // ---------- terrain, islet, bridge ----------
 
   /** Rebuild the island's ground (shape, size, underside, pond) and the portal islet beside it. */
@@ -199,30 +214,33 @@ export class IslandWorld implements World {
     this.pond = t.pond;
     this.channel = t.channel;
 
-    // the islet with the portal, joined by a rope bridge
-    const homeEdge = radiusAt(r, ISLET_DIR.x, ISLET_DIR.z);
+    await this.buildIslet(radiusAt(r, this.isletDir.x, this.isletDir.z));
+  }
+
+  /** The islet with the portal, joined by a rope bridge to the island's edge `homeEdge` away. */
+  protected async buildIslet(homeEdge: number) {
     this.isletR = radii("round", 0.45, this.layout.seed + 1);
-    const isletEdge = radiusAt(this.isletR, -ISLET_DIR.x, -ISLET_DIR.z);
+    const isletEdge = radiusAt(this.isletR, -this.isletDir.x, -this.isletDir.z);
     const dist = homeEdge + ISLET_GAP + isletEdge;
-    this.islet.copy(ISLET_DIR).multiplyScalar(dist);
+    this.islet.copy(this.isletDir).multiplyScalar(dist);
     const isle = await buildTerrain(this.isletR, { underside: this.layout.underside, seed: this.layout.seed + 1, depth: 4 });
     isle.group.position.copy(this.islet);
     this.surroundG.clear();
     this.surroundG.add(isle.group);
-    this.bridge.b0 = ISLET_DIR.clone().multiplyScalar(homeEdge - 0.8);
-    this.bridge.b1 = ISLET_DIR.clone().multiplyScalar(homeEdge + ISLET_GAP + 0.8);
+    this.bridge.b0 = this.isletDir.clone().multiplyScalar(homeEdge - 0.8);
+    this.bridge.b1 = this.isletDir.clone().multiplyScalar(homeEdge + ISLET_GAP + 0.8);
     buildBridge(this.surroundG, this.bridge.b0, this.bridge.b1);
-    const side = new Vector3(-ISLET_DIR.z, 0, ISLET_DIR.x);
+    const side = new Vector3(-this.isletDir.z, 0, this.isletDir.x);
     for (const [p, s] of [[this.bridge.b0, 1], [this.bridge.b1, -1]] as const) {
       for (const k of [1, -1]) {
         const l = await prop("lantern");
-        l.position.copy(p).addScaledVector(side, 1.0 * k).addScaledVector(ISLET_DIR, 0.3 * s);
-        l.rotation.y = Math.atan2(ISLET_DIR.x, ISLET_DIR.z) + (k > 0 ? Math.PI / 2 : -Math.PI / 2);
+        l.position.copy(p).addScaledVector(side, 1.0 * k).addScaledVector(this.isletDir, 0.3 * s);
+        l.rotation.y = Math.atan2(this.isletDir.x, this.isletDir.z) + (k > 0 ? Math.PI / 2 : -Math.PI / 2);
         this.surroundG.add(l);
       }
     }
     const [ux, uz] = screen(0, 1.4);
-    this.portalPos.set(this.islet.x - ISLET_DIR.x * 0.2 + ux, 0, this.islet.z - ISLET_DIR.z * 0.2 + uz);
+    this.portalPos.set(this.islet.x - this.isletDir.x * 0.2 + ux, 0, this.islet.z - this.isletDir.z * 0.2 + uz);
     this.portalGroup.position.copy(this.portalPos);
     this.portalGroup.rotation.y = FACE;
     this.surroundG.add(this.portalGroup);
@@ -256,6 +274,7 @@ export class IslandWorld implements World {
   async addObject(p: Placed, refresh = true) {
     const o = await objectMesh(p);
     this.objects.set(p.id, o);
+    o.position.y = this.ground(p.x, p.z);
     this.objectsG.add(o);
     if (refresh) this.refresh();
     return o;
@@ -272,7 +291,7 @@ export class IslandWorld implements World {
   syncObject(p: Placed) {
     const o = this.objects.get(p.id);
     if (!o) return;
-    o.position.set(p.x, 0, p.z);
+    o.position.set(p.x, this.ground(p.x, p.z), p.z);
     o.rotation.y = p.rot;
     o.scale.setScalar(p.scale);
   }
@@ -309,7 +328,7 @@ export class IslandWorld implements World {
     this.flames = [];
     this.swings = [];
     for (const o of objs) {
-      const at = new Vector3(o.x, 0, o.z);
+      const at = new Vector3(o.x, this.ground(o.x, o.z), o.z);
       const use = (KINDS[o.kind] as KindDef).use;
       if (use === "fill") u.fill.push(at);
       else if (use === "sit" || use === "swing") u.seats.push({ id: o.id, pos: at, yaw: o.rot, swing: use === "swing" });
@@ -323,13 +342,47 @@ export class IslandWorld implements World {
     }
     this.uses = u;
     this.rebuildMask();
+    this.places = this.findPlaces();
   }
 
-  private rebuildMask() {
+  /** The spots worth a map pin: where things are done, and the portal. */
+  protected findPlaces(): Place[] {
+    const out: Place[] = [];
+    const objs = this.layout.objects;
+    const put = (id: string, label: string, icon: PlaceIcon, at: Vector3) => out.push({ id, label, icon, pos: at.clone() });
+    // a step towards the camera from an object, so the witch lands in front of it
+    const before = (o: Placed, d: number) => {
+      const [fx, fz] = screen(0, -1);
+      return new Vector3(o.x + fx * d * o.scale, 0, o.z + fz * d * o.scale);
+    };
+    if (this.door) put("cottage", "Cottage", "home", this.door);
+    const farm = objs.find((o) => o.kind === "farm");
+    if (farm) put("farm", "Farm field", "farm", before(farm, 2.4));
+    if (this.kind === "home") {
+      const c = objs.find((o) => o.kind === "cauldron");
+      if (c) put("cauldron", "Cauldron", "cauldron", before(c, 1));
+    }
+    const pond = objs.find((o) => o.kind === "pond");
+    if (pond && this.pond) put("pond", "Pond", "water", before(pond, 2.9));
+    for (const o of objs) {
+      const def = KINDS[o.kind] as KindDef;
+      if (o.kind.startsWith("shop_")) put(o.id, def.label, "shop", before(o, 2.6));
+      else if (o.kind === "fountain") put(o.id, "Fountain", "fountain", before(o, 2.3));
+      else if (o.kind === "notice_board") put(o.id, "Notice board", "stall", before(o, 1.4));
+    }
+    if (this.kind === "commons") {
+      const tree = objs.find((o) => o.kind === "tree_round_2");
+      if (tree) put("tree", "The great tree", "tree", before(tree, 3.4));
+    }
+    put("portal", "Portal", "portal", this.portalPos.clone().add(new Vector3(1.4, 0, 1.4)));
+    return out;
+  }
+
+  protected rebuildMask() {
     const m = new WalkMask();
     m.addGround(outline(coast(this.layout), WALK_INSET));
     m.addGround(outline(this.isletR, WALK_INSET, this.islet.x, this.islet.z));
-    const side = new Vector3(-ISLET_DIR.z, 0, ISLET_DIR.x).multiplyScalar(0.75);
+    const side = new Vector3(-this.isletDir.z, 0, this.isletDir.x).multiplyScalar(0.75);
     const { b0, b1 } = this.bridge;
     m.addGround([[b0.x + side.x, b0.z + side.z], [b1.x + side.x, b1.z + side.z], [b1.x - side.x, b1.z - side.z], [b0.x - side.x, b0.z - side.z]]);
     if (this.pond) m.addHole(this.pond);

@@ -11,8 +11,9 @@ Every system and its numbers. Values live in code; the file is named next to eac
 
 ## Your witch and your island
 
-- New players get a cozy random name, hat colour and island theme (meadow, blossom, autumn, mint).
-  Change them in the portal Atlas. Identity lives in this browser (`af.profile.v1`).
+- Everyone signs in with an email and a password (8+ characters, no verification). A new account
+  names its witch and gets a random hat colour and island theme (meadow, blossom, autumn, mint);
+  change them on the map's sidebar (Tab). The save lives on the server, so any browser will do.
 - Starting inventory: 20 coins, 8 ink, 2 wheat and 4 turnip seeds, a tin can full of water.
 
 ## Farming (`game/state.ts`, `farm/farm.ts`)
@@ -152,6 +153,45 @@ Every system and its numbers. Values live in code; the file is named next to eac
   you talk to a keeper.
 - **Satchel (I):** everything you carry, by kind (harvest, goods, flowers, materials, seeds).
 
+## Aetherhold, the royal city (`kingdom/`)
+
+A shared island like the market (`?island=kingdom`, or "Aetherhold" in the portal), much bigger
+(size 3.1) and built on a hill: four rings climb towards the palace at the top of the screen.
+
+| Ring | Ground | What's there |
+|---|---|---|
+| Lower town | 0 → 2.4, a gentle slope | the gate and its towers, curtain walls, the market square |
+| Middle town | 4.8 → 5.6 | the avenue's arc, the Gilded Griffin, the Narrows, alleys and stairs |
+| Upper town | 8.4 → 9.2 | the spell range, the bell tower, the Royal Arcanum |
+| Summit | 12 | the palace, its forecourt and gardens, the arcane crystal |
+
+- Retaining walls (2.4 to 2.8 high) separate the rings. The avenue climbs through cobbled ramps;
+  narrow stairs and the grand marble stair to the palace cut through elsewhere.
+- **Merchants in the square** (royal rates: they pay 10% more than the Lantern Market, daily prices
+  and specials as usual): *Fruit & Flora* (Marigold: flowers and seeds; buys flowers and crops),
+  *Glass & Brass* (Tobias: wood, stone, glass, brass), *Charm Peddler* (Nim: every charm and blanks),
+  *Dairy & Hive* (Bettany: honey, eggs, milk, wool).
+- **Royal Arcanum** (Archmage Elowen): all three scrolls, ink, the bottle, pen and cauldron upgrades;
+  buys ink and charms.
+- **The Gilded Griffin** (Ottilie): *honey mead* 12c (walk and run 30% faster for 3 real minutes,
+  stacks with boots; kept in the save), *starberry pie* 14c (+5 ink), *hot cocoa* 4c (+1 ink), *a song*
+  3c. Benches on the terrace; the bard plays now and then in the evening.
+- **Wishing fountain** (square): 1c, once per market day: three flowers (35%), three ink (30%),
+  15 coins (25%) or a random charm (10%).
+- **The great bell**: pull the rope at the tower's door; the first ring of each market day pays 5c.
+- **Spell range** (Brannoc): 5c for a 60-second round. Six runes float over the court; any glyph or
+  charm cast within 1.4 + 0.35×power of one bursts it (it comes back elsewhere 1.6 s later). 6c per
+  rune; your best round is kept.
+- **Royal requisition** (the steward at the palace door): each market day the kitchens want 3–7 of one
+  crop and pay 1.8× its price, once per day.
+- **The throne hall** (F at the palace's great door): a cutaway hall of marble and gold. Kneel before
+  Queen Seraphine once per market day for a 15c stipend (afterwards she shares a saying); touch the
+  Heart of Aether, floating over its pedestal, to fill your ink bottle once per market day; read the
+  royal grimoire at either lectern; the guards have advice. The dais steps up to the throne.
+- **Townsfolk**: twelve witches stroll the streets; F to chat (lore and hints). Keepers turn to face you.
+- Buildings between the camera and you open up in a dithered circle, so you never lose sight of your
+  witch in the alleys. The camera looks a little higher near the palace so its towers fit.
+
 ## Animals (`farm/animals.ts`, `farm/livestock.ts`)
 
 | Animal | Price | Eats each morning | Gives | Sells for |
@@ -182,7 +222,12 @@ Every system and its numbers. Values live in code; the file is named next to eac
 
 ## Multiplayer (`net/`, `server/`)
 
-- The portal opens the Atlas: Blossom Commons (shared island), other witches' islands, your profile.
+- The map (Tab, or the portal) shows every island you can reach: Aetherhold, the Lantern Market,
+  Blossom Commons, your home and your friends'. Click one to go at once. "This island" charts where
+  you are, with a pin per place; click a pin or any ground to blink there.
+- Islands are private. Ask a witch to be friends with their six-letter friend code, or from the map
+  when you're on the same island; once they accept, each of you can open your portal to the other
+  ("Let them visit"). Closing it, or unfriending, sends a visitor home.
 - Live: you see others move and draw, with name tags; T says a phrase; spells are seen by everyone.
   A visitor's rain really waters the owner's crops.
 - Async: on someone's island you can water their crops and leave a gift (a crop or a flower) in their
