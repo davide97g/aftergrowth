@@ -2,7 +2,8 @@ import { ITEMS, type ItemId } from "../../shared/items";
 import { marketDay, msToNextDay } from "../../shared/prices";
 import { type Save, count, give, inkMax, take } from "../game/state";
 import { costLabel } from "../island/costs";
-import { type Offer, type Shop, buyPrice, gear, offerKey, offerName, sellPrice, todaysSpecial, trend } from "./shops";
+import type { Sigil } from "../magic/recognizer";
+import { type Offer, SCROLLS, type Shop, buyPrice, gear, offerKey, offerName, sellPrice, todaysSpecial, trend } from "./shops";
 
 const ARROW = { [-1]: `<i class="down" title="Cheaper than yesterday">↓</i>`, 0: "", 1: `<i class="up" title="Dearer than yesterday">↑</i>` };
 
@@ -11,6 +12,8 @@ export class ShopPanel {
   private panel = document.getElementById("market")!;
   private shop: Shop | null = null;
   private tab: "buy" | "sell" = "buy";
+  /** a scroll was bought: teach its sigil */
+  onLearn: (s: Sigil) => void = () => {};
 
   constructor(private state: Save, private onChange: (msg?: string) => void) {
     document.getElementById("market-close")!.addEventListener("click", () => this.close());
@@ -48,6 +51,7 @@ export class ShopPanel {
       const o = shop.sells[Number(d.i)];
       const price = buyPrice(shop, o, s, day);
       if (price === null || ("gear" in o && !gear(s, o.gear).hasMats())) return;
+      if ("scroll" in o && SCROLLS[o.scroll]!.needs && !s.sigils.includes(SCROLLS[o.scroll]!.needs!)) return;
       let n = Math.min(Number(d.n), Math.floor(s.coins / price));
       if ("ink" in o) n = Math.min(n, inkMax(s) - s.ink);
       if (n <= 0) return;
@@ -55,8 +59,9 @@ export class ShopPanel {
       if ("item" in o) give(s, o.item, n);
       else if ("ink" in o) s.ink += n;
       else if ("sapling" in o) s.shed[o.sapling] = (s.shed[o.sapling] ?? 0) + n;
+      else if ("scroll" in o) this.onLearn(o.scroll);
       else gear(s, o.gear).buy();
-      this.onChange("gear" in o ? `${gear(s, o.gear).now}!` : "sapling" in o ? `${offerName(o)} · in your shed` : `+${n} ${offerName(o).toLowerCase()}`);
+      this.onChange("gear" in o ? `${gear(s, o.gear).now}!` : "sapling" in o ? `${offerName(o)} · in your shed` : "scroll" in o ? `Learned ${o.scroll}!` : `+${n} ${offerName(o).toLowerCase()}`);
     } else if (d.act === "sell") {
       const id = d.id as ItemId | "ink";
       const have = id === "ink" ? s.ink : count(s, id);
@@ -100,8 +105,18 @@ export class ShopPanel {
     const sp = todaysSpecial(shop, day);
     const rows: string[] = [];
     const cards: string[] = [];
+    const scrolls: string[] = [];
     shop.sells.forEach((o, i) => {
       const price = buyPrice(shop, o, s, day);
+      if ("scroll" in o) {
+        const sc = SCROLLS[o.scroll]!;
+        const known = s.sigils.includes(o.scroll);
+        const blocked = !!sc.needs && !s.sigils.includes(sc.needs);
+        scrolls.push(known
+          ? `<p class="upgrade"><span>You know <strong>${o.scroll}</strong>.</span></p>`
+          : `<p class="upgrade"><span><strong>${offerName(o)}</strong> teaches ${sc.blurb}${blocked ? ` <em>Learn ${sc.needs} first.</em>` : ""}</span><button data-act="buy" data-i="${i}" data-n="1" ${!blocked && s.coins >= price! ? "" : "disabled"}>Study · ${price}c</button></p>`);
+        return;
+      }
       if ("gear" in o) {
         const g = gear(s, o.gear);
         cards.push(g.next
@@ -120,7 +135,7 @@ export class ShopPanel {
         <td><button data-act="buy" data-i="${i}" data-n="1" ${ok ? "" : "disabled"}>+1</button>${many ? `<button data-act="buy" data-i="${i}" data-n="5" ${ok ? "" : "disabled"}>+5</button>` : ""}</td>
       </tr>`);
     });
-    return `${rows.length ? `<div class="table-wrap"><table><thead><tr><th></th><th>Have</th><th>Price</th><th></th></tr></thead><tbody>${rows.join("")}</tbody></table></div>` : ""}${cards.join("")}`;
+    return `${scrolls.join("")}${rows.length ? `<div class="table-wrap"><table><thead><tr><th></th><th>Have</th><th>Price</th><th></th></tr></thead><tbody>${rows.join("")}</tbody></table></div>` : ""}${cards.join("")}`;
   }
 
   private sellRows(shop: Shop, day: number) {

@@ -30,8 +30,23 @@ export const FLOWER_COLORS: FlowerColor[] = ["pink", "yellow", "blue", "white"];
 export type Material = "wood" | "stone" | "glass" | "brass";
 export const MATERIALS: Material[] = ["wood", "stone", "glass", "brass"];
 
-export type ItemCat = "seed" | "crop" | "flower" | "produce" | "material";
-export type ItemId = `seed:${CropId}` | `crop:${CropId}` | `flower:${FlowerColor}` | "honey" | Material;
+/** spells a charm can hold (the same ids as the game's spells) */
+export type CharmSpell = "growth" | "water" | "wind" | "light" | "flame" | "rainbow" | "bloom" | "fireflies" | "steam";
+const CHARMS: Record<CharmSpell, { name: string; price: number }> = {
+  growth: { name: "Sprout charm", price: 12 },
+  water: { name: "Rain charm", price: 15 },
+  wind: { name: "Gust charm", price: 12 },
+  light: { name: "Light charm", price: 12 },
+  flame: { name: "Ember charm", price: 15 },
+  rainbow: { name: "Rainbow charm", price: 40 },
+  bloom: { name: "Bloom charm", price: 25 },
+  fireflies: { name: "Firefly charm", price: 30 },
+  steam: { name: "Steam charm", price: 10 },
+};
+export const CHARM_SPELLS = Object.keys(CHARMS) as CharmSpell[];
+
+export type ItemCat = "seed" | "crop" | "flower" | "produce" | "material" | "charm";
+export type ItemId = `seed:${CropId}` | `crop:${CropId}` | `flower:${FlowerColor}` | "honey" | Material | `charm:${CharmSpell}` | "charm_blank";
 
 export interface ItemDef {
   name: string;
@@ -55,6 +70,9 @@ ITEMS.wood = { name: "Wood", cat: "material", price: 4, pays: 2, grown: true };
 ITEMS.stone = { name: "Stone", cat: "material", price: 5, pays: 2, grown: true };
 ITEMS.glass = { name: "Glass", cat: "material", price: 12, pays: 5 };
 ITEMS.brass = { name: "Brass", cat: "material", price: 20, pays: 8 };
+// charms are bought, or inscribed at the cauldron onto a blank; shops buy them back at 60%
+for (const c of CHARM_SPELLS) ITEMS[`charm:${c}`] = { name: CHARMS[c].name, cat: "charm", price: CHARMS[c].price, pays: Math.round(CHARMS[c].price * 0.6), grown: true };
+ITEMS.charm_blank = { name: "Charm blank", cat: "charm", price: 2, pays: 1 };
 
 export const ITEM_IDS = Object.keys(ITEMS) as ItemId[];
 export const isItem = (id: unknown): id is ItemId => typeof id === "string" && id in ITEMS;

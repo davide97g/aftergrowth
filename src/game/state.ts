@@ -1,7 +1,7 @@
 import type { Gift } from "../../shared/protocol";
 import type { IslandLayout } from "../island/layout";
 import type { SpellId } from "../magic/glyph";
-import type { P } from "../magic/recognizer";
+import type { P, Sigil } from "../magic/recognizer";
 
 import { type CropId, FLOWER_COLORS, type FlowerColor, ITEMS, type ItemId } from "../../shared/items.ts";
 
@@ -24,6 +24,9 @@ export const CAULDRONS = [
   { name: "Copper cauldron", ink: 4, price: 80 },
   { name: "Moon cauldron", ink: 5, price: 200, mats: { brass: 3 } },
 ] as const;
+
+/** what a new witch can draw; scrolls teach the rest */
+export const FIRST_SIGILS: Sigil[] = ["growth", "water"];
 
 /** flowers one brew takes */
 export const BREW_FLOWERS = 2;
@@ -63,6 +66,8 @@ export interface Save {
   hour: number;
   coins: number;
   ink: number;
+  /** sigils you can draw; the rest are learned from scrolls */
+  sigils: Sigil[];
   /** everything carried: seeds, crops, flowers, honey… by item id */
   bag: Partial<Record<ItemId, number>>;
   selected: CropId;
@@ -116,6 +121,7 @@ export function newGame(plots: number, stones: number): Save {
     coins: 20,
     ink: 8,
     bag: { "seed:wheat": 2, "seed:turnip": 4 },
+    sigils: [...FIRST_SIGILS],
     can: { level: 0, water: CANS[0].holds },
     bottle: 0,
     cauldron: 0,
@@ -144,6 +150,8 @@ export function load(plots: number, stones: number): Save {
         s.bottle = Math.min(Math.max(s.bottle ?? 0, 0), BOTTLES.length - 1);
         s.cauldron = Math.min(Math.max(s.cauldron ?? 0, 0), CAULDRONS.length - 1);
         s.shed ??= {};
+        // saves from before scrolls drew every sigil already
+        s.sigils ??= ["growth", "water", "wind", "light", "flame"];
         s.land ??= s.island?.size ?? 1;
         s.day ??= 1;
         return s;

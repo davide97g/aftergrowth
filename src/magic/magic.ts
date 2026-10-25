@@ -1,6 +1,7 @@
 import { Camera, OrthographicCamera, Plane, Raycaster, Scene, Vector2, Vector3 } from "three";
 import { sound } from "../audio/sound";
-import type { Save } from "../game/state";
+import { type CharmSpell, ITEMS } from "../../shared/items";
+import { type Save, count, give, take } from "../game/state";
 import type { Hud } from "../ui/hud";
 import type { Witch } from "../player/witch";
 import type { Mood } from "../world/daycycle";
@@ -11,7 +12,7 @@ import { GlyphDecal } from "./decal";
 import { type Reading, type SpellId, readSeal } from "./glyph";
 import { FIZZLE_NOTES, Grimoire, SPELL_NAMES } from "./grimoire";
 import { InkOverlay } from "./ink";
-import type { P } from "./recognizer";
+import type { P, Sigil } from "./recognizer";
 import { type SpellHooks, Spells } from "./spells";
 
 const S = Math.SQRT1_2;
@@ -27,7 +28,7 @@ export function inkCost(r: Reading): number {
 /** Pen, ink and grimoire: turns drawings on the screen into spells on the island. */
 export class Magic {
   private overlay = new InkOverlay();
-  private grimoire = new Grimoire();
+  private grimoire: Grimoire;
   private decals: GlyphDecal[] = [];
   private ray = new Raycaster();
   private ground = new Plane(new Vector3(0, 1, 0), 0);
@@ -44,6 +45,7 @@ export class Magic {
     stones: Save["stones"],
     private canCarve: boolean,
   ) {
+    this.grimoire = new Grimoire(() => state.sigils);
     this.contraptions = new Contraptions(scene, world.spots.stones, stones, spells, !canCarve);
     this.overlay.onStroke = (strokes) => this.onStroke(strokes);
     addEventListener("keydown", (e) => {
@@ -134,7 +136,9 @@ export class Magic {
     }, 900);
   }
 
-  private resolve(r: Reading) {
+  private resolve(read: Reading) {
+    // a sigil you haven't studied doesn't hold
+    const r: Reading = read.kind === "spell" && read.sigils.some((s) => !this.state.sigils.includes(s)) ? { ...read, kind: "fizzle", reason: "unknown" } : read;
     const at = this.groundAt(r.center);
     const onIsland = !!at && this.world.mask.onGround(at.x, at.z);
     const stone = at ? this.contraptions.stoneAt(at) : -1;
@@ -144,18 +148,19 @@ export class Magic {
       return;
     }
     const carving = stone >= 0 && r.kind === "spell";
-    const cost = inkCost(r) * (carving ? 2 : 1);
+    const charm = !carving && r.kind === "spell" && !!at && at.distanceTo(this.world.spots.cauldron) < 1.4 && count(this.state, "charm_blank") > 0;
+    const cost = inkCost(r) * (carving || charm ? 2 : 1);
 
     if (r.kind === "spell" && this.state.ink < cost) {
       this.finish(true);
-      this.hud.toast("The pen runs dry", `This glyph needs ${cost} drops of ink, you have ${this.state.ink}.${carving ? " Carving costs double." : ""}`);
+      this.hud.toast("The pen runs dry", `This glyph needs ${cost} drops of ink, you have ${this.state.ink}.${carving ? " Carving costs double." : charm ? " Inscribing costs double." : ""}`);
       return;
     }
     this.state.ink = Math.max(0, this.state.ink - cost);
     const fizzled = r.kind === "fizzle" || !onIsland;
     this.finish(fizzled);
 
-    if (at && onIsland && !carving) {
+    if (at && onIsland && !carving && !charm) {
       const decal = new GlyphDecal(r, at, this.worldRadius(r.radius), fizzled, fizzled ? 3 : 9);
       this.scene.add(decal.mesh);
       this.decals.push(decal);
@@ -180,6 +185,13 @@ export class Magic {
       this.hud.toast(`${SPELL_NAMES[r.spell]} carved into the stone`, `It will work on its own now. ${cost} drops of ink used.`);
       return;
     }
+    if (charm) {
+      take(this.state, "charm_blank");
+      give(this.state, `charm:${r.spell}`);
+      this.onInventory();
+      this.hud.toast(`${ITEMS[`charm:${r.spell}`].name} inscribed`, `It's in your satchel. Use it anywhere, no ink needed. ${cost} drops used.`);
+      return;
+    }
     const dir = r.dir ? RIGHT.clone().multiplyScalar(r.dir.x).addScaledVector(UP, -r.dir.y).normalize() : null;
     this.spells.cast(r.spell, at!, r.power, dir);
     sound.spell(r.spell, r.power);
@@ -187,6 +199,32 @@ export class Magic {
     const strength = ["", "", " · strong", " · stronger", " · strongest"][r.power];
     this.hud.toast(`${SPELL_NAMES[r.spell]}${strength}`, fresh ? "A new page in the grimoire." : `${cost} ${cost === 1 ? "drop" : "drops"} of ink`);
   }
+
+  /** A scroll from the Scriptorium: the sigil holds from now on. */
+  learnSigil(s: Sigil) {
+    if (!this.state.sigils.includes(s)) this.state.sigils.push(s);
+    this.grimoire.learn(s);
+    this.grimoire.refresh();
+  }
+
+  /** Break a charm: its spell happens just in front of the witch, at power 2, without ink or drawing. */
+  useCharm(spell: CharmSpell) {
+    if (!this.allowed || this.overlay.isOpen) {
+      this.hud.toast("Not here", "Charms work outside, with the pen put away.");
+      return;
+    }
+    const at = this.witch.position.clone().add(new Vector3(Math.sin(this.witch.yaw), 0, Math.cos(this.witch.yaw)).multiplyScalar(1.2));
+    if (!this.world.mask.onGround(at.x, at.z) || !take(this.state, `charm:${spell}`)) return;
+    this.spells.cast(spell, at, 2, null);
+    sound.spell(spell, 2);
+    this.onCast(spell, at, 2);
+    this.witch.react("cast");
+    this.onInventory();
+    this.hud.toast(ITEMS[`charm:${spell}`].name, `${SPELL_NAMES[spell]}! The charm crumbles to gold dust.`);
+  }
+
+  /** after a charm is made or used */
+  onInventory: () => void = () => {};
 
   openGrimoire() {
     this.grimoire.toggle(true);

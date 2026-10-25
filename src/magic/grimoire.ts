@@ -26,6 +26,7 @@ const FAILS: Record<FizzleId, Entry> = {
   crowded: { title: "Crowded seal", note: "Three sigils are too many for one seal." },
   "signs-only": { title: "Signs alone", note: "Dots and lines shape a spell, but without a sigil there is nothing to shape." },
   argue: { title: "Sigils argue", note: "Some pairs refuse to share a seal." },
+  unknown: { title: "An unlearned sigil", note: "The shape was right, but the ink won't hold a sigil you haven't studied. The Scriptorium sells the scrolls." },
 };
 
 export const SPELL_NAMES: Record<SpellId, string> = {
@@ -44,7 +45,8 @@ export class Grimoire {
   private known = new Set<string>(["growth", "water"]);
   private panel = document.getElementById("grimoire")!;
 
-  constructor() {
+  /** `learned` are the sigils the witch can draw; the others need a scroll first */
+  constructor(private learned: () => Sigil[]) {
     try {
       const saved = JSON.parse(localStorage.getItem(KEY) ?? "[]") as string[];
       saved.forEach((k) => this.known.add(k));
@@ -62,6 +64,11 @@ export class Grimoire {
   toggle(open = this.panel.hidden) {
     this.panel.hidden = !open;
     if (open) this.render();
+  }
+
+  /** Redraw (after learning from a scroll). */
+  refresh() {
+    this.render();
   }
 
   /** Record a result. Returns true the first time it is seen. */
@@ -82,7 +89,9 @@ export class Grimoire {
     const sigils = (Object.keys(SIGILS) as Sigil[]).map((k) => {
       const e = SIGILS[k];
       const known = this.known.has(k);
-      return `<li class="${known ? "" : "unknown"}"><span class="glyph">${known ? sigilSvg(SIGIL_SHAPES[k]) : "<b>?</b>"}</span><span><strong>${known ? e.title : "Unknown sigil"}</strong><em>${known ? e.note : e.riddle}</em></span></li>`;
+      const studied = this.learned().includes(k);
+      const note = !studied ? `${known ? e.note : e.riddle} <b>Not learned yet: a scroll at the Scriptorium teaches it.</b>` : known ? e.note : e.riddle;
+      return `<li class="${known && studied ? "" : "unknown"}"><span class="glyph">${known ? sigilSvg(SIGIL_SHAPES[k]) : "<b>?</b>"}</span><span><strong>${known ? e.title : "Unknown sigil"}</strong><em>${note}</em></span></li>`;
     });
     const results = (Object.keys(RESULTS) as (keyof typeof RESULTS)[]).map((k) => {
       const known = this.known.has(k);
@@ -99,6 +108,8 @@ export class Grimoire {
           <li>The spell lands on the ground under the circle.</li>
           <li>Every sigil and every dot costs a drop of ink. Brew more from flowers at the cauldron.</li>
           <li>Close a seal over a carving stone and the glyph is carved in: it works on its own after that. Carving costs double.</li>
+          <li>Close a seal over the cauldron with a charm blank in your satchel and the glyph goes into a charm, to use later. Also double ink.</li>
+          <li>A sigil only holds once you have studied its scroll.</li>
         </ol></section>
       <section><h3>Sigils</h3><ul class="entries">${sigils.join("")}</ul></section>
       <section><h3>Combinations</h3><ul class="entries">${results.join("")}</ul></section>

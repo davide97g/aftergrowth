@@ -1,13 +1,21 @@
-import { CROP_IDS, FLOWER_COLORS, INK_PRICE, ITEMS, type ItemId, MATERIALS, type Material } from "../../shared/items.ts";
+import { CHARM_SPELLS, CROP_IDS, FLOWER_COLORS, INK_PRICE, ITEMS, type ItemId, MATERIALS, type Material } from "../../shared/items.ts";
 import { SALE, WANTED, type Special, special, swing } from "../../shared/prices.ts";
 import { BOTTLES, BREW_FLOWERS, CANS, CAULDRONS, type Save } from "../game/state.ts";
 import { PRICES } from "../island/costs.ts";
 import { KINDS, type Kind } from "../island/layout.ts";
+import type { Sigil } from "../magic/recognizer.ts";
 
 export type GearId = "can" | "bottle" | "cauldron";
 
-/** Something a shop sells: an item, drops of ink, the next level of a tool, or a sapling for the shed. */
-export type Offer = { item: ItemId } | { ink: true } | { gear: GearId } | { sapling: Kind };
+/** Something a shop sells: an item, drops of ink, the next level of a tool, a sapling for the shed, or a scroll. */
+export type Offer = { item: ItemId } | { ink: true } | { gear: GearId } | { sapling: Kind } | { scroll: Sigil };
+
+/** Scrolls teach the sigils a new witch doesn't know. Flame is only sold once you know light. */
+export const SCROLLS: Partial<Record<Sigil, { price: number; needs?: Sigil; blurb: string }>> = {
+  wind: { price: 60, blurb: "the curl: gusts, and the windmill races." },
+  light: { price: 80, blurb: "the star: a light that floats through the night." },
+  flame: { price: 120, needs: "light", blurb: "the triangle: a campfire, warm and safe." },
+};
 
 export interface Keeper {
   name: string;
@@ -73,10 +81,13 @@ export const SHOPS: Shop[] = [
   },
   {
     id: "scriptorium", name: "Scriptorium", building: "shop_scriptorium", daily: true, rate: 1,
-    keeper: { name: "Hazel", color: "#6a4f9e", greeting: "Hush. The scrolls are still drying." },
-    sells: [],
-    buys: [],
-    soon: "Sigil scrolls and charms are being copied out.",
+    keeper: { name: "Hazel", color: "#6a4f9e", greeting: "Study a scroll, and the sigil will hold. Or take a charm, and skip the drawing." },
+    sells: [
+      ...(["wind", "light", "flame"] as Sigil[]).map((s): Offer => ({ scroll: s })),
+      { item: "charm_blank" },
+      ...(["water", "growth", "light", "wind", "bloom", "rainbow"] as const).map((c): Offer => ({ item: `charm:${c}` })),
+    ],
+    buys: CHARM_SPELLS.map((c): ItemId => `charm:${c}`),
   },
   {
     id: "outfitter", name: "Outfitter", building: "shop_hat", daily: true, rate: 1,
@@ -92,6 +103,7 @@ export function offerKey(o: Offer): string {
   if ("item" in o) return o.item;
   if ("ink" in o) return "ink";
   if ("gear" in o) return `gear:${o.gear}`;
+  if ("scroll" in o) return `scroll:${o.scroll}`;
   return `sapling:${o.sapling}`;
 }
 
@@ -99,12 +111,13 @@ export function offerName(o: Offer): string {
   if ("item" in o) return ITEMS[o.item].name;
   if ("ink" in o) return "Ink";
   if ("sapling" in o) return `${KINDS[o.sapling].label} sapling`;
+  if ("scroll" in o) return `${o.scroll[0].toUpperCase()}${o.scroll.slice(1)} scroll`;
   return o.gear;
 }
 
 export function todaysSpecial(shop: Shop, day: number): Special | null {
   if (!shop.daily) return null;
-  const sells = shop.sells.filter((o) => !("gear" in o)).map(offerKey);
+  const sells = shop.sells.filter((o) => !("gear" in o) && !("scroll" in o)).map(offerKey);
   const wants = shop.buys.filter((id) => id !== "ink" && ITEMS[id].grown);
   return special(shop.id, sells, wants, day);
 }
@@ -112,6 +125,7 @@ export function todaysSpecial(shop: Shop, day: number): Special | null {
 /** What the shop charges for one of an offer today (gear: the next level; null when there is none). */
 export function buyPrice(shop: Shop, o: Offer, s: Save, day: number): number | null {
   if ("gear" in o) return gear(s, o.gear).next?.price ?? null;
+  if ("scroll" in o) return s.sigils.includes(o.scroll) ? null : SCROLLS[o.scroll]!.price;
   const base = "item" in o ? ITEMS[o.item].price : "ink" in o ? INK_PRICE.price : PRICES[o.sapling];
   if (!shop.daily) return base;
   const key = offerKey(o);

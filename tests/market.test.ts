@@ -5,7 +5,7 @@ import { SWING, marketDay, special, swing } from "../shared/prices.ts";
 import { fromLegacy, newGame } from "../src/game/state.ts";
 import { KINDS, MARKET_SHOPS, coast, marketLayout } from "../src/island/layout.ts";
 import { radiusAt } from "../src/island/shapes.ts";
-import { CRATE, SHOPS, buyPrice, offerKey, sellPrice } from "../src/market/shops.ts";
+import { CRATE, SCROLLS, SHOPS, buyPrice, offerKey, sellPrice } from "../src/market/shops.ts";
 
 test("prices swing within bounds and are the same for everyone on a day", () => {
   const day = marketDay(Date.UTC(2026, 9, 25, 12));
@@ -52,4 +52,15 @@ test("the market has every shop, on the island", () => {
   const r = coast(l);
   for (const o of l.objects) assert.ok(Math.hypot(o.x, o.z) < radiusAt(r, o.x, o.z) * 0.9, `${o.kind} near the edge`);
   for (const o of l.objects) assert.ok(o.kind in KINDS);
+});
+
+test("new witches know two sigils and buy the rest as scrolls", () => {
+  const save = newGame(12, 3);
+  assert.deepEqual(save.sigils, ["growth", "water"]);
+  const scriptorium = SHOPS.find((s) => s.id === "scriptorium")!;
+  const wind = scriptorium.sells.find((o) => "scroll" in o && o.scroll === "wind")!;
+  assert.ok(buyPrice(scriptorium, wind, save, 1)! > 0);
+  save.sigils.push("wind");
+  assert.equal(buyPrice(scriptorium, wind, save, 1), null, "already known");
+  assert.equal(SCROLLS.flame!.needs, "light");
 });

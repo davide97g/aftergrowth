@@ -144,6 +144,16 @@ multiplayer (live and async); magic drawn with rules, like *Witch Hat Atelier*.
   short of. Coin prices of built things went down to make room for the materials.
 - Timber & Stone opened. The Crystal decanter needs 2 glass and the Moon cauldron 3 brass.
 
+## 13. Scrolls and charms (market phase 3)
+
+- Sigils are learned now: new witches start with growth and water (`state.sigils`), and the
+  Scriptorium sells scrolls for the rest. An unlearned sigil is recognised but fizzles, and the
+  Grimoire marks it "not learned yet". Old saves keep all five.
+- Charms: nine charm items, one per spell. Used from the satchel they cast at the witch's feet at
+  power 2. Inscribed at the cauldron with a charm blank (double ink), they give magic its own income:
+  flowers → ink → charms → coins.
+- Checked by drawing real glyphs with the mouse in a headless browser (a scripted wind sigil and seal).
+
 ## How things were checked
 
 Every step was checked in a headless browser (screenshots, scripted clicks, keyboard and mouse

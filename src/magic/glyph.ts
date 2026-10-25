@@ -13,7 +13,7 @@ export type Reading =
   | (Seal & { kind: "spell"; spell: SpellId; sigils: Sigil[]; power: number; dir: P | null })
   | (Seal & { kind: "fizzle"; reason: FizzleId });
 
-export type FizzleId = "empty" | "unclear" | "crowded" | "signs-only" | "argue";
+export type FizzleId = "empty" | "unclear" | "crowded" | "signs-only" | "argue" | "unknown";
 
 const COMBOS: Record<string, SpellId> = {
   "light+water": "rainbow",

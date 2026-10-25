@@ -123,6 +123,8 @@ export async function startGame() {
     satchel.render();
     shops.render();
   };
+  shops.onLearn = (s) => magic.learnSigil(s);
+  satchel.onUse = (spell) => magic.useCharm(spell);
   const workshop = new Workshop(scene, world.spots, state, changed, world.pond, () => shops.open(CRATE));
   const bazaar = market ? await Market.create(scene, world, shops) : null;
   const magic = await Magic.create(scene, world, life, witch, rig.camera, hud, state, {
@@ -131,6 +133,7 @@ export async function startGame() {
     flower: (obj, color) => flowers.addGrown(obj, color),
   }, everyone ? [] : stones, mine);
   magic.onCast = (spell, at, power) => social.castSpell(spell, at, power);
+  magic.onInventory = () => hud.inventory(state);
   social.onRemoteSpell = (spell, at, power) => magic.remoteCast(spell, at, power);
   social.useMailbox(world.mailbox, world.spots.mailbox);
   const weather = new Weather(scene, seedOf(islandId));
@@ -287,5 +290,5 @@ export async function startGame() {
   if (commons) hud.toast("Blossom Commons", "Everyone's island meets here.");
   if (market) hud.toast("Lantern Market", "Six shops, new prices every day. Talk to a keeper at their counter.");
   // handy in the browser console while developing
-  Object.assign(window, { __game: { clock, witch, world, scene, camera: rig.camera, state, net, social, weather, sound } });
+  Object.assign(window, { __game: { clock, witch, world, scene, camera: rig.camera, state, net, social, weather, sound, magic, satchel, shops } });
 }

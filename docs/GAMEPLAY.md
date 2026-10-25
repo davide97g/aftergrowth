@@ -53,12 +53,20 @@ Every system and its numbers. Values live in code; the file is named next to eac
 | Light | five-point star | a floating light for 40 + 20×power seconds |
 | Flame | triangle | a campfire for 45 + 15×power seconds |
 
+- **Learned sigils:** a new witch knows growth and water. Scrolls from the Scriptorium teach wind,
+  light and flame (flame only after light). A sigil you haven't learned fizzles ("an unlearned
+  sigil"). Saves from before this keep all five.
 - Draw sigils first, then close a circle around them. Each dot inside adds power (1–4).
 - Two sigils combine: water + light = rainbow, growth + water = bloom (with a new sapling),
   wind + light = firefly dance, water + flame = steam. Other pairs argue and fizzle.
 - Ink cost: 1 per sigil + 1 per dot. A smudge spills 1. Not enough ink: nothing is spent.
-- Fizzles: empty seal, unclear mark, three sigils, signs without a sigil, sigils that argue, a circle
-  over the sky. All are recorded in the Grimoire.
+- Fizzles: empty seal, unclear mark, three sigils, signs without a sigil, sigils that argue, an
+  unlearned sigil, a circle over the sky. All are recorded in the Grimoire.
+- **Charms** are single-use spells (items). Use one from the satchel: the spell happens just in front
+  of the witch at power 2, with no ink and no drawing. Buy them at the Scriptorium, or **inscribe**
+  your own: close a seal over the cauldron with a charm blank in your satchel. The glyph goes into
+  the charm instead of being cast, for double ink. Any spell can be a charm, combinations included.
+  The Scriptorium buys charms back at 60%.
 
 ## Contraptions (`magic/contraptions.ts`)
 
@@ -119,7 +127,7 @@ Every system and its numbers. Values live in code; the file is named next to eac
 | The Inkwell | Odile | ink (5c a drop), flowers (2c), Glass flask, Crystal decanter (+2 glass) | flowers (1c), ink (2c) |
 | Menagerie | Bramble | animals soon | honey |
 | Timber & Stone | Rowan | wood 4c, stone 5c, glass 12c, brass 20c | wood, stone (2c) |
-| Scriptorium | Hazel | scrolls and charms soon | |
+| Scriptorium | Hazel | Wind 60c, Light 80c, Flame 120c (after light) scrolls; charm blanks 2c; rain, sprout, light, gust, bloom, rainbow charms 12–40c | every charm (60%) |
 | Outfitter | Tilly | Copper can, Copper and Moon (+3 brass) cauldrons | |
 
 - **Daily prices:** a market day is a real UTC day, the same for everyone. Each item's price moves

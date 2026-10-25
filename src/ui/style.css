@@ -603,3 +603,5 @@ body.editing #inventory, body.editing #hint, body.editing #prompt, body.editing 
 #market tr.hot { background: #fff3d6; }
 #market td.price { white-space: nowrap; }
 #market td.price i { font-style: normal; font-weight: 700; }
+#satchel .items button { margin-left: 6px; font: 600 0.8rem/1 var(--f-body); color: var(--parchment); background: var(--ink); border: none; border-radius: 999px; padding: 5px 9px; cursor: pointer; }
+#satchel .items button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
