@@ -7,6 +7,9 @@ import { Farm } from "../farm/farm";
 import { Flowers } from "../farm/flowers";
 import { Garden } from "../farm/garden";
 import { Workshop } from "../farm/workshop";
+import { Market } from "../market/market";
+import { ShopPanel } from "../market/panel";
+import { CRATE } from "../market/shops";
 import { PortalOverlay } from "../fx/portal";
 import { Tweens } from "../fx/tween";
 import { Magic } from "../magic/magic";
@@ -15,6 +18,7 @@ import { Social } from "../net/social";
 import { Witch } from "../player/witch";
 import { shared } from "../render/toon";
 import { Hud } from "../ui/hud";
+import { Satchel } from "../ui/satchel";
 import { Birds } from "../world/birds";
 import { sampleMood } from "../world/daycycle";
 import { Life } from "../world/life";
@@ -61,9 +65,11 @@ export async function startGame() {
     setTimeout(() => (location.href = "/"), 1500);
     return;
   }
-  const { islandId, commons, visiting, host } = here;
-  const mine = !visiting && !commons;
-  setTheme(commons ? "blossom" : host ? host.theme : me.theme);
+  const { islandId, commons, market, visiting, host } = here;
+  /** the commons and the market belong to everyone: no farm, no carving stones */
+  const everyone = commons || market;
+  const mine = !visiting && !everyone;
+  setTheme(commons ? "blossom" : market ? "meadow" : host ? host.theme : me.theme);
   const state = load(HOME.plots, HOME.stones);
   const layout = layoutFor(here, me, state);
   // the editor works on the world's copy, so Discard (or a timed save mid-edit) never keeps half an edit
@@ -73,7 +79,7 @@ export async function startGame() {
   const canvas = document.getElementById("game") as HTMLCanvasElement;
   const stage = new Stage(canvas);
   const scene = stage.scene;
-  const world = await buildWorld(scene, { kind: commons ? "commons" : "home", layout });
+  const world = await buildWorld(scene, { kind: commons ? "commons" : market ? "market" : "home", layout });
   stage.fitShadows(world.bounds.center, world.bounds.radius);
   const witch = await Witch.load(me.color);
   witch.position.copy(world.spawn);
@@ -100,7 +106,7 @@ export async function startGame() {
 
   // ---------- systems ----------
   // what the farm and the stones show: your save at home, the host's snapshot on a visit
-  const view: Save = commons ? { ...state, plots: [] } : host
+  const view: Save = everyone ? { ...state, plots: [] } : host
     ? { ...state, plots: host.plots.map((p) => ({ crop: (p.crop as CropId | null) ?? null, growth: p.growth, wet: p.wet, locked: !!p.locked })) }
     : state;
   const stones: (Inscription | null)[] = host ? host.stones.map((s) => (s ? { ...s, spell: s.spell as Inscription["spell"], cooldown: 0 } : null)) : state.stones;
@@ -110,12 +116,19 @@ export async function startGame() {
   const farm = await Farm.create(scene, world.plots, view, changed);
   if (host) farm.visit = { owner: host.name, water: (plots) => net.send({ t: "water", island: host.id, plots }) };
   const flowers = new Flowers(world.flowerBeds, state, (c) => changed(`+1 ${c} flower`));
-  const workshop = new Workshop(scene, world.spots, state, changed, world.pond);
+  const shops = new ShopPanel(state, changed);
+  const satchel = new Satchel(state);
+  hud.onInventory = () => {
+    satchel.render();
+    shops.render();
+  };
+  const workshop = new Workshop(scene, world.spots, state, changed, world.pond, () => shops.open(CRATE));
+  const bazaar = market ? await Market.create(scene, world, shops) : null;
   const magic = await Magic.create(scene, world, life, witch, rig.camera, hud, state, {
     water: (at, radius) => farm.water(at, radius),
     grow: (at, radius, hours) => farm.grow(at, radius, hours),
     flower: (obj, color) => flowers.addGrown(obj, color),
-  }, commons ? [] : stones, mine);
+  }, everyone ? [] : stones, mine);
   magic.onCast = (spell, at, power) => social.castSpell(spell, at, power);
   social.onRemoteSpell = (spell, at, power) => magic.remoteCast(spell, at, power);
   social.useMailbox(world.mailbox, world.spots.mailbox);
@@ -124,7 +137,7 @@ export async function startGame() {
   weather.onRainbow = () => magic.remoteCast("rainbow", witch.position.clone().add(new Vector3(-2.5, 0, -2.5)), 3);
   const birds = new Birds(scene, world);
   const rest = new Rest(witch, clock, hud);
-  const owner = commons ? "Blossom Commons" : host ? host.name : me.name;
+  const owner = commons ? "Blossom Commons" : market ? "Lantern Market" : host ? host.name : me.name;
   const garden = new Garden(scene, world, state, { onChange: changed, sit: rest.sitAt, owner, mine });
   rest.onStand = () => (garden.riding = null);
 
@@ -174,7 +187,7 @@ export async function startGame() {
   // ---------- what F does outside ----------
   const outdoors = new Interactions(rig.camera);
   for (const p of [rest.action, garden.fill, garden.seat, garden.hive, garden.sign, cottage.door, workshop.cauldron, workshop.market,
-    workshop.pondside, magic.contraptions.action, farm.action, flowers.action, social.mailbox, social.portal(world.portalPos)]) outdoors.add(p);
+    workshop.pondside, ...(bazaar ? [bazaar.action, bazaar.board] : []), magic.contraptions.action, farm.action, flowers.action, social.mailbox, social.portal(world.portalPos)]) outdoors.add(p);
   outdoors.onAct = () => witch.react("gesture");
   input.onPick = (p) => (cottage.inside ? cottage.indoors : outdoors).clicked(p);
 
@@ -218,7 +231,7 @@ export async function startGame() {
     stage.applyMood(mood, clock.hour, weather.raining, weather.overcast);
 
     // the witch
-    const busy = magic.drawing || workshop.marketOpen || !atlas.hidden || editor.active || travel.active;
+    const busy = magic.drawing || shops.isOpen || !atlas.hidden || editor.active || travel.active;
     if (editor.active) editor.focus.addScaledVector(input.wish(editor.focus), dt * 14);
     input.enabled = !editor.active;
     const wish = rest.update(busy ? new Vector3() : input.wish(witch.position), null);
@@ -237,6 +250,7 @@ export async function startGame() {
     farm.update(dt, hours);
     flowers.update(hours);
     workshop.update(dt);
+    bazaar?.update(dt, witch.position);
     social.update(dt, witch, cottage.inside ? world.door : null);
     cottage.update(dt, mood);
     birds.update(dt, witch.position, mood.glow > 0.6, weather.raining > 0.5);
@@ -268,6 +282,7 @@ export async function startGame() {
   if (here.viaPortal) void travel.arrive(world.portalPos.clone().add(new Vector3(1.4, 0, 1.4)));
   if (visiting) hud.toast(`${host!.name}'s island`, "Water their crops, leave a gift in the mailbox. The portal takes you home.");
   if (commons) hud.toast("Blossom Commons", "Everyone's island meets here.");
+  if (market) hud.toast("Lantern Market", "Six shops, new prices every day. Talk to a keeper at their counter.");
   // handy in the browser console while developing
   Object.assign(window, { __game: { clock, witch, world, scene, camera: rig.camera, state, net, social, weather, sound } });
 }

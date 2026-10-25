@@ -210,7 +210,7 @@ body.drawing .actions { bottom: calc(80px + env(safe-area-inset-bottom, 0px)); }
 #toast.show { animation: toast-in 0.35s ease-out; }
 @keyframes toast-in { from { opacity: 0; transform: translate(-50%, -8px); } }
 
-#grimoire {
+#grimoire, #satchel {
   position: absolute;
   top: calc(12px + env(safe-area-inset-top, 0px));
   bottom: calc(12px + env(safe-area-inset-bottom, 0px));
@@ -295,7 +295,7 @@ body.drawing #prompt { display: none; }
   max-width: calc(100vw - 32px - 260px);
 }
 #inventory .row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-#inventory .row > span, #seeds button {
+#inventory .row > span, #seeds button, #btn-satchel {
   font: 600 0.9rem/1 var(--f-body);
   color: var(--ink);
   background: var(--parchment-soft);
@@ -307,7 +307,8 @@ body.drawing #prompt { display: none; }
   gap: 6px;
   font-variant-numeric: tabular-nums;
 }
-#pouch { font-weight: 400 !important; font-style: italic; }
+#btn-satchel { cursor: pointer; }
+#btn-satchel:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 #seeds button { cursor: pointer; font-weight: 400; }
 #seeds button b { font-weight: 700; }
 #seeds button kbd { font: 700 0.7rem/1 var(--f-body); border: 1px solid currentColor; border-radius: 4px; padding: 1px 4px; opacity: 0.7; }
@@ -517,7 +518,7 @@ body.drawing .say-wrap { display: none; }
 #atlas button:focus-visible, #atlas input:focus-visible, #btn-say:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 
 /* panels sit above the action buttons and the inventory */
-#atlas, #market, #grimoire { z-index: 5; }
+#atlas, #market, #grimoire, #satchel { z-index: 5; }
 #market .upgrade { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 8px 0 0; padding: 10px 12px; background: #fffaf0; border: 1px solid #2a223033; border-radius: 12px; }
 #market .upgrade strong { font: 1.05rem var(--f-display); }
 #market .upgrade button { font: 600 0.85rem/1 var(--f-body); color: var(--parchment); background: var(--ink); border: none; border-radius: 999px; padding: 7px 12px; cursor: pointer; white-space: nowrap; }
@@ -581,3 +582,24 @@ body.drawing .say-wrap { display: none; }
 body.editing #inventory, body.editing #hint, body.editing #prompt, body.editing .actions, body.editing #labels { display: none; }
 
 #portal-veil { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 20; pointer-events: none; }
+
+#satchel header { display: flex; justify-content: space-between; align-items: center; }
+#satchel h2 { margin: 0; font: 1.8rem/1 var(--f-display); }
+#satchel h3 { margin: 18px 0 8px; font: italic 1.15rem/1.1 var(--f-display); border-bottom: 1px solid #2a223033; padding-bottom: 4px; }
+#satchel-close { font: 1.6rem/1 var(--f-display); background: none; border: none; color: var(--ink); cursor: pointer; padding: 4px 8px; }
+#satchel .items { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; margin: 0; padding: 0; list-style: none; }
+#satchel .items li { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; background: #fffaf0; border: 1px solid #2a223033; border-radius: 10px; font: 1rem var(--f-body); }
+#satchel .items b { font-variant-numeric: tabular-nums; }
+#satchel .note { margin: 14px 0 0; font: italic 0.9rem var(--f-body); opacity: 0.8; }
+
+#market .keeper { display: flex; gap: 10px; align-items: flex-start; margin: 10px 0 0; font: italic 1rem/1.35 var(--f-body); }
+#market .keeper b { font-style: normal; }
+#market .keeper .hat { flex: none; width: 22px; height: 22px; margin-top: 1px; clip-path: polygon(50% 0, 100% 100%, 0 100%); border-bottom: 3px solid var(--ink); }
+#market .special { margin: 8px 0 0; padding: 6px 10px; background: #ffe9b0; border: 1px solid #c99a3e; border-radius: 10px; font: 0.92rem var(--f-body); }
+#market .coins small { font-weight: 400; font-style: italic; opacity: 0.75; }
+#market .tabs { display: flex; gap: 4px; border-bottom: 1px solid #2a223033; margin-bottom: 4px; }
+#market .tabs button { font: 1.05rem var(--f-display); color: var(--ink); background: none; border: none; border-bottom: 2.5px solid transparent; padding: 6px 12px; cursor: pointer; }
+#market .tabs button[aria-selected="true"] { border-bottom-color: var(--ink); }
+#market tr.hot { background: #fff3d6; }
+#market td.price { white-space: nowrap; }
+#market td.price i { font-style: normal; font-weight: 700; }

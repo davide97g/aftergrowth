@@ -59,8 +59,8 @@ export interface World {
   bounds: { center: Vector3; radius: number };
 }
 
-/** Which island to build: every player's island has its own layout; the commons has no farm. */
-export interface IslandSpec { kind: "home" | "commons"; layout: IslandLayout }
+/** Which island to build: every player's island has its own layout; the commons and the market have no farm. */
+export interface IslandSpec { kind: "home" | "commons" | "market"; layout: IslandLayout }
 
 export function seedOf(id: string) {
   let h = 2166136261;
@@ -300,7 +300,10 @@ export class IslandWorld implements World {
     } else this.door = null;
     const windmill = first("windmill");
     this.blades = windmill ? this.objects.get(windmill.id)?.getObjectByName("Blades") ?? null : null;
-    this.spawn.copy(this.door ? this.door.clone().add(new Vector3(0.9, 0, 0.9)) : new Vector3(...[screen(0, 0.8)[0], 0, screen(0, 0.8)[1]] as [number, number, number]));
+    // in front of the cottage door, or of the fountain on the market, or the middle of the commons
+    const fountain = first("fountain");
+    const [sx, sz] = fountain ? screen(0, -3.2) : screen(0, 0.8);
+    this.spawn.copy(this.door ? this.door.clone().add(new Vector3(0.9, 0, 0.9)) : new Vector3(sx + (fountain?.x ?? 0), 0, sz + (fountain?.z ?? 0)));
 
     const u: IslandWorld["uses"] = { fill: [], seats: [], hives: [], scare: [], signs: [] };
     this.flames = [];

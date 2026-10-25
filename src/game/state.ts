@@ -3,27 +3,9 @@ import type { IslandLayout } from "../island/layout";
 import type { SpellId } from "../magic/glyph";
 import type { P } from "../magic/recognizer";
 
-export type CropId = "wheat" | "turnip" | "carrot" | "corn" | "pumpkin" | "melon";
-export type FlowerColor = "pink" | "yellow" | "blue" | "white";
+import { type CropId, FLOWER_COLORS, type FlowerColor, ITEMS, type ItemId } from "../../shared/items.ts";
 
-export interface CropDef {
-  name: string;
-  /** game hours of wet soil from seed to harvest */
-  hours: number;
-  seedPrice: number;
-  sellPrice: number;
-  model: string;
-}
-
-export const CROPS: Record<CropId, CropDef> = {
-  wheat: { name: "Wheat", hours: 7, seedPrice: 3, sellPrice: 7, model: "wheat" },
-  turnip: { name: "Turnip", hours: 10, seedPrice: 4, sellPrice: 10, model: "turnip" },
-  carrot: { name: "Carrot", hours: 16, seedPrice: 6, sellPrice: 16, model: "carrot" },
-  corn: { name: "Corn", hours: 20, seedPrice: 8, sellPrice: 22, model: "corn" },
-  pumpkin: { name: "Pumpkin", hours: 28, seedPrice: 12, sellPrice: 36, model: "pumpkin" },
-  melon: { name: "Melon", hours: 36, seedPrice: 16, sellPrice: 50, model: "melon" },
-};
-export const CROP_IDS = Object.keys(CROPS) as CropId[];
+export { CROPS, CROP_IDS, type CropDef, type CropId, FLOWER_COLORS, type FlowerColor, type ItemId } from "../../shared/items.ts";
 
 /** Watering can levels: how much it holds and how many plots in a row one pour reaches. */
 export const CANS = [
@@ -81,9 +63,8 @@ export interface Save {
   hour: number;
   coins: number;
   ink: number;
-  seeds: Record<CropId, number>;
-  harvest: Record<CropId, number>;
-  flowers: Record<FlowerColor, number>;
+  /** everything carried: seeds, crops, flowers, honey… by item id */
+  bag: Partial<Record<ItemId, number>>;
   selected: CropId;
   plots: Plot[];
   stones: (Inscription | null)[];
@@ -99,8 +80,6 @@ export interface Save {
   land: number;
   /** in-game day number, for the weather */
   day: number;
-  /** things that aren't crops: honey for now */
-  goods?: { honey: number };
   /** honey waiting in each beehive, by placed-object id */
   hives?: Record<string, number>;
   /** your island's shape and everything placed on it (made on first start) */
@@ -111,21 +90,36 @@ export interface Save {
 
 const KEY = "af.save.v1";
 
+/** Saves from before the bag kept seeds, crops, flowers and honey apart. */
+interface Legacy {
+  seeds?: Partial<Record<CropId, number>>;
+  harvest?: Partial<Record<CropId, number>>;
+  flowers?: Partial<Record<FlowerColor, number>>;
+  goods?: { honey?: number };
+}
+
+export function fromLegacy(s: Legacy): Save["bag"] {
+  const bag: Save["bag"] = {};
+  for (const [c, n] of Object.entries(s.seeds ?? {})) if (n) bag[`seed:${c as CropId}`] = n;
+  for (const [c, n] of Object.entries(s.harvest ?? {})) if (n) bag[`crop:${c as CropId}`] = n;
+  for (const [c, n] of Object.entries(s.flowers ?? {})) if (n) bag[`flower:${c as FlowerColor}`] = n;
+  if (s.goods?.honey) bag.honey = s.goods.honey;
+  return bag;
+}
+
 export function newGame(plots: number, stones: number): Save {
   return {
     version: 1,
     hour: 9,
     coins: 20,
     ink: 8,
-    seeds: { wheat: 2, turnip: 4, carrot: 0, corn: 0, pumpkin: 0, melon: 0 },
-    harvest: { wheat: 0, turnip: 0, carrot: 0, corn: 0, pumpkin: 0, melon: 0 },
+    bag: { "seed:wheat": 2, "seed:turnip": 4 },
     can: { level: 0, water: CANS[0].holds },
     bottle: 0,
     cauldron: 0,
     shed: {},
     land: 1,
     day: 1,
-    flowers: { pink: 0, yellow: 0, blue: 0, white: 0 },
     selected: "turnip",
     plots: Array.from({ length: plots }, (_, i) => ({ crop: null, growth: 0, wet: 0, locked: i >= OPEN_PLOTS })),
     stones: Array.from({ length: stones }, () => null),
@@ -136,13 +130,13 @@ export function load(plots: number, stones: number): Save {
   try {
     const raw = localStorage.getItem(KEY);
     if (raw) {
-      const s = JSON.parse(raw) as Save;
+      const s = JSON.parse(raw) as Save & Legacy;
       if (s.version === 1 && s.plots.length === plots && s.stones.length === stones) {
-        // saves from before new crops and tools: fill in what's missing
-        for (const c of Object.keys(CROPS) as CropId[]) {
-          s.seeds[c] ??= 0;
-          s.harvest[c] ??= 0;
-        }
+        s.bag = { ...fromLegacy(s), ...s.bag };
+        delete s.seeds;
+        delete s.harvest;
+        delete s.flowers;
+        delete s.goods;
         s.can ??= { level: 0, water: CANS[0].holds };
         // saves from before upgrades and editor costs keep everything they had
         s.bottle = Math.min(Math.max(s.bottle ?? 0, 0), BOTTLES.length - 1);
@@ -175,14 +169,29 @@ export function resetSave() {
   }
 }
 
+export const count = (s: Save, id: ItemId) => s.bag[id] ?? 0;
+
+export function give(s: Save, id: ItemId, n = 1) {
+  if (!(id in ITEMS)) return;
+  s.bag[id] = count(s, id) + n;
+}
+
+/** Take `n` of an item; false (and nothing taken) if there aren't enough. */
+export function take(s: Save, id: ItemId, n = 1) {
+  if (count(s, id) < n) return false;
+  s.bag[id] = count(s, id) - n;
+  if (!s.bag[id]) delete s.bag[id];
+  return true;
+}
+
 export function totalFlowers(s: Save) {
-  return Object.values(s.flowers).reduce((a, b) => a + b, 0);
+  return FLOWER_COLORS.reduce((a, c) => a + count(s, `flower:${c}`), 0);
 }
 
 /** Take `n` flowers, most plentiful colour first. */
 export function takeFlowers(s: Save, n: number) {
   for (let i = 0; i < n; i++) {
-    const color = (Object.keys(s.flowers) as FlowerColor[]).sort((a, b) => s.flowers[b] - s.flowers[a])[0];
-    s.flowers[color]--;
+    const color = [...FLOWER_COLORS].sort((a, b) => count(s, `flower:${b}`) - count(s, `flower:${a}`))[0];
+    take(s, `flower:${color}`);
   }
 }

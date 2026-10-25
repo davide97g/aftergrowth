@@ -2,7 +2,8 @@ import { type IslandLayout, KIND_IDS, type Kind } from "./layout.ts";
 
 /**
  * What each thing costs the first time you place it. Removing something puts it in your shed, and
- * placing it again from the shed is free. Essentials can't be added or removed, so they cost nothing.
+ * placing it again from the shed is free. Essentials can't be added or removed, and market buildings
+ * never stand on a home island, so they cost nothing.
  */
 export const PRICES: Record<Kind, number> = {
   cottage: 0, farm: 0, cauldron: 0, market: 0, mailbox: 0, stone: 0, pond: 0,
@@ -16,6 +17,7 @@ export const PRICES: Record<Kind, number> = {
   lantern: 12, lamp_post: 20, crystal_lamp: 35, campfire: 20, bench: 25, swing: 45, log: 10, stump: 6,
   signpost: 10, statue_obelisk: 30, statue_ring: 40, statue_column: 25, log_stack: 10, canoe: 30,
   stump_old: 6, fence: 4, pot: 8, pumpkin: 5,
+  shop_seeds: 0, shop_ink: 0, shop_barn: 0, shop_timber: 0, shop_scriptorium: 0, shop_hat: 0, stall_booth: 0, fountain: 0, notice_board: 0,
 };
 
 /** Growing the island costs this much per step of size beyond the largest you've paid for. */

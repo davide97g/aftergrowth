@@ -2,7 +2,8 @@ import { type Pt, SHAPE_IDS, type ShapeId, clampInside, radii, radiusAt } from "
 
 export type Underside = "rock" | "roots" | "crystal";
 export const UNDERSIDES: Underside[] = ["rock", "roots", "crystal"];
-export type Category = "home" | "trees" | "nature" | "garden" | "decor";
+/** "market" things only stand on the Lantern Market; the editor never offers them */
+export type Category = "home" | "trees" | "nature" | "garden" | "decor" | "market";
 /** what a placed object does when the witch is near it */
 export type Use = "fill" | "sit" | "swing" | "hive" | "scare" | "sign";
 
@@ -80,6 +81,15 @@ export const KINDS = {
   fence: { label: "Fence", cat: "decor", model: "fence", solid: 0.2 },
   pot: { label: "Planter", cat: "decor", model: "pot", solid: 0.3 },
   pumpkin: { label: "Pumpkin", cat: "decor", model: "pumpkin", solid: 0.3 },
+  shop_seeds: { label: "Seed & Sprout", cat: "market", model: "shop_seeds", solid: 1.8 },
+  shop_ink: { label: "The Inkwell", cat: "market", model: "shop_ink", solid: 1.75 },
+  shop_barn: { label: "Menagerie", cat: "market", model: "shop_barn", solid: 2.2 },
+  shop_timber: { label: "Timber & Stone", cat: "market", model: "shop_timber", solid: 2.0 },
+  shop_scriptorium: { label: "Scriptorium", cat: "market", model: "shop_scriptorium", solid: 2.0 },
+  shop_hat: { label: "Outfitter", cat: "market", model: "shop_hat", solid: 1.75 },
+  stall_booth: { label: "Stall", cat: "market", model: "stall_booth", solid: 0.9 },
+  fountain: { label: "Fountain", cat: "market", model: "fountain", solid: 1.6 },
+  notice_board: { label: "Notice board", cat: "market", model: "notice_board", solid: 0.9 },
 } satisfies Record<string, KindDef>;
 
 export type Kind = keyof typeof KINDS;
@@ -180,6 +190,43 @@ export function commonsLayout(): IslandLayout {
   return layout;
 }
 
+/** Where the six shops stand on the market island, in screen terms (right, up) from the centre. */
+export const MARKET_SHOPS: [Kind, number, number][] = [
+  ["shop_seeds", -11.5, 0.5],
+  ["shop_ink", -8.6, 7.4],
+  ["shop_scriptorium", -2.6, 11.2],
+  ["shop_hat", 4.2, 11.0],
+  ["shop_barn", 10.4, 6.8],
+  ["shop_timber", 12.4, -1.2],
+];
+
+/** The Lantern Market: six shops in an arc around a fountain plaza, stall booths along the front. */
+export function marketLayout(): IslandLayout {
+  const rand = rng(77);
+  const objects: Placed[] = [];
+  const put = (kind: Kind, r: number, u: number, rot = FACE, scale = 1) => {
+    const [x, z] = screen(r, u);
+    objects.push({ id: `${kind}-${objects.length}`, kind, x, z, rot, scale });
+  };
+  const [px, pz] = screen(0, 0);
+  for (const [kind, r, u] of MARKET_SHOPS) {
+    // face the plaza, but never turn the counter away from the camera
+    const [x, z] = screen(r, u);
+    const toward = Math.atan2(px - x, pz - z);
+    const d = Math.atan2(Math.sin(toward - FACE), Math.cos(toward - FACE));
+    put(kind, r, u, FACE + Math.max(-0.7, Math.min(0.7, d)));
+  }
+  put("fountain", 0, 0.5);
+  put("notice_board", 3.4, -1.6);
+  for (let i = 0; i < 8; i++) put("stall_booth", -9.1 + i * 2.6, -9.5);
+  for (const [r, u] of [[-4.5, 3.8], [4.5, 3.8], [-5.2, -3.4], [5.2, -3.4], [-12, -6.5], [12, -6.5]]) put("lamp_post", r, u);
+  for (const [r, u, k] of [[-3, -2.6, "bench"], [3, 3.2, "bench"], [-2.8, 3.4, "flower_bed"], [-6.5, -5.2, "flower_bed"], [7, -5.2, "flower_bed"]] as const) put(k, r, u, FACE + (rand() - 0.5) * 0.3);
+  for (const [r, u] of [[-14.5, 6], [15.5, 4.5], [-15, -8], [0.6, 15.5], [-6.5, 14.5], [8.5, 14.8]]) put(rand() > 0.5 ? "tree_round_2" : "tree_cypress_2", r, u, rand() * 6, 0.9 + rand() * 0.3);
+  const layout: IslandLayout = { v: 1, shape: "round", size: 1.9, underside: "crystal", seed: 1337, meadow: 1337, objects };
+  addTreeRing(layout, rand);
+  return layout;
+}
+
 /** Trees along the far edge frame the island like the concept art. */
 function addTreeRing(layout: IslandLayout, rand: () => number) {
   const r = coast(layout);
@@ -229,7 +276,7 @@ export function sanitizeLayout(raw: unknown, fallback: IslandLayout): IslandLayo
   if (!l || l.v !== 1 || !Array.isArray(l.objects)) return fallback;
   const objects: Placed[] = [];
   for (const o of l.objects.slice(0, 400)) {
-    if (!o || !(o.kind in KINDS) || ![o.x, o.z, o.rot, o.scale].every(Number.isFinite)) continue;
+    if (!o || !(o.kind in KINDS) || KINDS[o.kind as Kind].cat === "market" || ![o.x, o.z, o.rot, o.scale].every(Number.isFinite)) continue;
     objects.push({ id: String(o.id).slice(0, 48), kind: o.kind, x: o.x, z: o.z, rot: o.rot, scale: Math.min(Math.max(o.scale, 0.4), 3) });
   }
   for (const kind of KIND_IDS) {

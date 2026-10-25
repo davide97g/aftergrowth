@@ -1,14 +1,13 @@
 import { IcosahedronGeometry, Mesh, MeshBasicMaterial, Object3D, Scene, Vector3 } from "three";
 import { sound } from "../audio/sound";
 import type { Action } from "../game/interact";
-import { CANS, type Save } from "../game/state";
+import { CANS, type Save, give } from "../game/state";
 import type { Mood } from "../world/daycycle";
 import type { IslandWorld } from "../world/world";
 
 /** game hours for a hive to make one jar of honey; a hive holds three */
 const HONEY_HOURS = 6;
 const HIVE_MAX = 3;
-export const HONEY_PRICE = 14;
 
 interface Bee { mesh: Mesh; hive: Vector3; phase: number; speed: number }
 
@@ -92,8 +91,7 @@ export class Garden {
     return {
       pos: h.pos, reach: 1.5, label: `Collect honey (${stored})`, priority: 1,
       act: () => {
-        this.state.goods = this.state.goods ?? { honey: 0 };
-        this.state.goods.honey += stored;
+        give(this.state, "honey", stored);
         this.state.hives![h.id] -= stored;
         this.hooks.onChange(`+${stored} honey`);
       },

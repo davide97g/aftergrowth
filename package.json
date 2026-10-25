@@ -12,7 +12,7 @@
     "typecheck": "tsc --noEmit",
     "test": "node --test tests/*.test.ts",
     "check": "tsc --noEmit && node --test tests/*.test.ts",
-    "assets": "blender -b -P tools/blender/build_props.py && blender -b -P tools/blender/build_chibi.py && blender -b -P tools/blender/build_furniture.py"
+    "assets": "blender -b -P tools/blender/build_props.py && blender -b -P tools/blender/build_chibi.py && blender -b -P tools/blender/build_furniture.py && blender -b -P tools/blender/build_market.py"
   },
   "dependencies": {
     "three": "^0.186.1",

@@ -1,5 +1,5 @@
 import { sound } from "../audio/sound";
-import { CANS, CROPS, CROP_IDS, type CropId, type Save, inkMax } from "../game/state";
+import { CANS, CROPS, CROP_IDS, type CropId, type Save, count, inkMax } from "../game/state";
 import { formatHour } from "../world/daycycle";
 
 const SUN = `<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="3.6" fill="#E8A92A" stroke="#2A2230" stroke-width="1.2"/><g stroke="#2A2230" stroke-width="1.2" stroke-linecap="round"><path d="M8 1v1.6M8 13.4V15M1 8h1.6M13.4 8H15M3 3l1.1 1.1M11.9 11.9 13 13M3 13l1.1-1.1M11.9 4.1 13 3"/></g></svg>`;
@@ -64,6 +64,8 @@ export class Hud {
   private popTimer = 0;
   private invKey = "";
   onSelectSeed: (c: CropId) => void = () => {};
+  /** after the inventory changed: open panels redraw */
+  onInventory: () => void = () => {};
   onReset: () => void = () => {};
 
   /** A short line that floats up above the inventory: "+1 Turnip". */
@@ -78,9 +80,9 @@ export class Hud {
     this.popTimer = window.setTimeout(() => (el.hidden = true), 1400);
   }
 
-  /** Ink bottle, coins, seeds (selectable), harvest and flowers. */
+  /** Ink bottle, coins, can, the satchel button and the seeds (selectable). */
   inventory(s: Save) {
-    const key = JSON.stringify([s.ink, s.bottle, s.coins, s.seeds, s.harvest, s.flowers, s.selected, s.can, s.goods]);
+    const key = JSON.stringify([s.ink, s.bottle, s.coins, s.bag, s.selected, s.can]);
     if (key === this.invKey) return;
     this.invKey = key;
     const fill = s.ink / inkMax(s);
@@ -90,11 +92,10 @@ export class Hud {
     document.getElementById("coins")!.textContent = String(s.coins);
     document.getElementById("can-count")!.textContent = `${s.can.water}/${CANS[s.can.level].holds}`;
     const seeds = document.getElementById("seeds")!;
-    seeds.innerHTML = CROP_IDS.map((c, i) => `<button type="button" data-seed="${c}" aria-pressed="${s.selected === c}" ${s.seeds[c] ? "" : "class=\"none\""}><kbd>${i + 1}</kbd>${CROPS[c].name} <b>${s.seeds[c]}</b></button>`).join("");
-    const flowers = Object.values(s.flowers).reduce((a, b) => a + b, 0);
-    const crops = CROP_IDS.filter((c) => s.harvest[c]).map((c) => `${CROPS[c].name} ${s.harvest[c]}`);
-    const honey = s.goods?.honey ? [`Honey ${s.goods.honey}`] : [];
-    document.getElementById("pouch")!.textContent = [`${flowers} flower${flowers === 1 ? "" : "s"}`, ...crops, ...honey].join(" · ");
+    seeds.innerHTML = CROP_IDS.map((c, i) => `<button type="button" data-seed="${c}" aria-pressed="${s.selected === c}" ${count(s, `seed:${c}`) ? "" : "class=\"none\""}><kbd>${i + 1}</kbd>${CROPS[c].name} <b>${count(s, `seed:${c}`)}</b></button>`).join("");
+    const carried = Object.entries(s.bag).filter(([id]) => !id.startsWith("seed:")).reduce((a, [, n]) => a + (n ?? 0), 0);
+    document.getElementById("satchel-count")!.textContent = `Satchel · ${carried}`;
+    this.onInventory();
   }
 
   /** A parchment note at the top of the screen. */

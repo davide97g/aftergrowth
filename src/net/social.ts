@@ -1,7 +1,7 @@
 import { Camera, Mesh, Object3D, Scene, Vector3 } from "three";
-import { type AtlasEntry, type Deed, type Gift, HUB_ID, type IslandSnap, PHRASES, type Pose, type Profile } from "../../shared/protocol";
+import { type AtlasEntry, type Deed, type Gift, HUB_ID, type IslandSnap, MARKET_ID, PHRASES, type Pose, type Profile } from "../../shared/protocol";
 import type { Action } from "../game/interact";
-import { CROPS, CROP_IDS, type CropId, type FlowerColor, type Save } from "../game/state";
+import { CROPS, CROP_IDS, type CropId, FLOWER_COLORS, type FlowerColor, type ItemId, type Save, count, give, take } from "../game/state";
 import type { Hud } from "../ui/hud";
 import { Witch } from "../player/witch";
 import { COLORS, type Me, type Net, THEMES, saveMe } from "./net";
@@ -220,8 +220,8 @@ export class Social {
         pos, reach: 1.4, label: `Mailbox · ${mail.length} ${mail.length === 1 ? "gift" : "gifts"}`,
         act: () => {
           for (const g of mail) {
-            if (g.kind === "flower" && g.color in s.flowers) s.flowers[g.color as FlowerColor]++;
-            if (g.kind === "crop" && g.crop in s.harvest) s.harvest[g.crop as CropId]++;
+            if (g.kind === "flower") give(s, `flower:${g.color as FlowerColor}`);
+            if (g.kind === "crop") give(s, `crop:${g.crop as CropId}`);
           }
           const from = [...new Set(mail.map((g) => g.from))].join(", ");
           this.hud.toast(`${mail.length} ${mail.length === 1 ? "gift" : "gifts"} collected`, `From ${from}.`);
@@ -230,16 +230,17 @@ export class Social {
       };
     }
     if (!this.net.online || !this.host) return { pos, reach: 1.4, label: "Mailbox · the owner can't receive gifts right now", act: null };
-    const crop = CROP_IDS.filter((c) => s.harvest[c] > 0).sort((a, b) => s.harvest[b] - s.harvest[a])[0];
-    const flower = (Object.keys(s.flowers) as FlowerColor[]).filter((c) => s.flowers[c] > 0).sort((a, b) => s.flowers[b] - s.flowers[a])[0];
+    const most = <T extends string>(ids: T[], key: (id: T) => ItemId) => ids.filter((c) => count(s, key(c)) > 0).sort((a, b) => count(s, key(b)) - count(s, key(a)))[0];
+    const crop = most(CROP_IDS, (c) => `crop:${c}`);
+    const flower = most(FLOWER_COLORS, (c) => `flower:${c}`);
     if (!crop && !flower) return { pos, reach: 1.4, label: `Mailbox · nothing to give ${this.host.name}`, act: null };
     const gift: Gift = crop ? { from: this.me.name, kind: "crop", crop } : { from: this.me.name, kind: "flower", color: flower! };
     const what = crop ? CROPS[crop].name.toLowerCase() : `${flower} flower`;
     return {
       pos, reach: 1.4, label: `Leave a ${what} for ${this.host.name}`,
       act: () => {
-        if (crop) s.harvest[crop]--;
-        else s.flowers[flower!]--;
+        if (crop) take(s, `crop:${crop}`);
+        else take(s, `flower:${flower!}`);
         this.net.send({ t: "gift", island: this.host!.id, gift });
         this.hud.toast("Gift left", `${this.host!.name} will find a ${what} in the mailbox.`);
       },
@@ -273,8 +274,8 @@ export class Social {
     };
     const row = (e: AtlasEntry) => {
       const here = e.id === this.islandId;
-      const status = e.id === HUB_ID ? `${e.here} here now` : e.online ? `online${e.here ? ` · ${e.here} here` : ""}` : `away · ${ago(e.lastSeen)}`;
-      return `<li><i style="background:${e.color}"></i><span><strong></strong><em>${THEME_NAMES[e.theme] ?? ""} island · ${status}</em></span>${here ? `<b>you are here</b>` : `<button type="button" data-go="${e.id}">Travel</button>`}</li>`;
+      const status = e.id === HUB_ID || e.id === MARKET_ID ? `${e.here} here now` : e.online ? `online${e.here ? ` · ${e.here} here` : ""}` : `away · ${ago(e.lastSeen)}`;
+      return `<li><i style="background:${e.color}"></i><span><strong></strong><em>${e.id === MARKET_ID ? "Six shops, new prices daily" : `${THEME_NAMES[e.theme] ?? ""} island`} · ${status}</em></span>${here ? `<b>you are here</b>` : `<button type="button" data-go="${e.id}">Travel</button>`}</li>`;
     };
     let list: string;
     if (!this.net.online) list = `<p class="quiet">The portal is quiet: the island server is offline. You can still go home.</p>`;

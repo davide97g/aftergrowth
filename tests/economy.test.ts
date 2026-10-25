@@ -6,10 +6,10 @@ import { OPEN_PLOTS, clearPrice, newGame } from "../src/game/state.ts";
 
 const wallet = (coins = 100) => ({ coins, shed: {}, land: 1 });
 
-test("every placeable kind has a price, essentials are free", () => {
+test("every placeable kind has a price, essentials and market buildings are free", () => {
   for (const [kind, def] of Object.entries(KINDS)) {
     const price = PRICES[kind as keyof typeof KINDS];
-    if ("essential" in def && def.essential) assert.equal(price, 0, kind);
+    if (("essential" in def && def.essential) || def.cat === "market") assert.equal(price, 0, kind);
     else assert.ok(price > 0, kind);
   }
 });

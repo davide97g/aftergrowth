@@ -121,6 +121,21 @@ multiplayer (live and async); magic drawn with rules, like *Witch Hat Atelier*.
 - **Sound:** synthesised in Web Audio like the music box, no files to license or load: wind, rain,
   pond, fire, birds, crickets, footsteps, pen scratch, seal bells, spells, pouring, coins, portal.
 
+## 11. The Lantern Market, phase 1
+
+- Designed the whole market economy with the user (`docs/MARKET.md`): NPC shops plus player stalls,
+  daily prices, learned sigils with scrolls and charms, animals with light care. Built in phases.
+- **Items:** one catalog in `shared/items.ts`; the save's separate seeds, harvest, flowers and honey
+  became one `bag`, migrated on load. A satchel panel (I) replaced the one-line pouch.
+- **Daily prices** (`shared/prices.ts`): a hash of item and real UTC day, so everyone sees the same
+  market without the server simulating anything. A test checks over 120 days that nothing can be
+  bought and sold back at a profit.
+- **The island:** a size-1.9 island with six shop buildings (modelled in Blender by
+  `build_market.py`, each with a `keeper` marker), a fountain plaza, a notice board and eight stall
+  booths. Keepers are the chibi witch in their own hat colours, turning to greet you.
+- **Shops** share one panel with Buy/Sell tabs, today's special and price trends. The home crate
+  became the basic shop (80%, three seeds); upgrades moved to the Inkwell and the Outfitter.
+
 ## How things were checked
 
 Every step was checked in a headless browser (screenshots, scripted clicks, keyboard and mouse

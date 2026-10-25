@@ -2,6 +2,8 @@
 
 export type Theme = "meadow" | "blossom" | "autumn" | "mint";
 export const HUB_ID = "commons";
+/** the Lantern Market: shared like the commons, with shops */
+export const MARKET_ID = "market";
 
 export interface Profile { id: string; name: string; color: string }
 

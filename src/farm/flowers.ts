@@ -1,6 +1,6 @@
 import { Group, InstancedMesh, Matrix4, Object3D, Vector3 } from "three";
 import type { Action } from "../game/interact";
-import type { FlowerColor, Save } from "../game/state";
+import { type FlowerColor, type Save, give } from "../game/state";
 
 const REGROW_HOURS = 8;
 const REACH = 0.9;
@@ -73,7 +73,7 @@ export class Flowers {
       reach: REACH,
       label: `Pick ${f.color} flower`,
       act: () => {
-        this.state.flowers[f.color]++;
+        give(this.state, `flower:${f.color}`);
         if (f.bed) f.regrow = REGROW_HOURS;
         this.setVisible(f, false);
         if (f.obj) this.all.splice(this.all.indexOf(f), 1);

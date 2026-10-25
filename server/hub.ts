@@ -3,7 +3,7 @@ import type { Server } from "node:http";
 import { dirname } from "node:path";
 import { type WebSocket, WebSocketServer } from "ws";
 import type { AtlasEntry, ClientMsg, Deed, IslandSnap, Pose, Profile, ServerMsg } from "../shared/protocol.ts";
-import { HUB_ID, PHRASES } from "../shared/protocol.ts";
+import { HUB_ID, MARKET_ID, PHRASES } from "../shared/protocol.ts";
 import { defaultHome, sanitizeLayout } from "../src/island/layout.ts";
 
 const seedOf = (id: string) => {
@@ -100,7 +100,7 @@ export function attachHub(http: Server, file: string) {
           c.pose = null;
           send(c, { t: "peers", peers: room(c.island, c).map((o) => ({ profile: o.profile!, pose: o.pose })) });
           for (const o of room(c.island, c)) send(o, { t: "joined", profile: me });
-          if (m.island !== me.id && m.island !== HUB_ID) send(c, { t: "island", island: store.islands[m.island]?.snap ?? null });
+          if (m.island !== me.id && m.island !== HUB_ID && m.island !== MARKET_ID) send(c, { t: "island", island: store.islands[m.island]?.snap ?? null });
           return;
         }
         case "pose": {
@@ -130,7 +130,8 @@ export function attachHub(http: Server, file: string) {
           }));
           entries.sort((a, b) => Number(b.online) - Number(a.online) || b.here - a.here || b.lastSeen - a.lastSeen);
           const hub: AtlasEntry = { id: HUB_ID, name: "Blossom Commons", color: "#f28cc0", theme: "blossom", online: true, here: room(HUB_ID).length, lastSeen: Date.now() };
-          send(c, { t: "atlas", islands: [hub, ...entries.slice(0, 60)] });
+          const market: AtlasEntry = { id: MARKET_ID, name: "Lantern Market", color: "#ffc94d", theme: "meadow", online: true, here: room(MARKET_ID).length, lastSeen: Date.now() };
+          send(c, { t: "atlas", islands: [hub, market, ...entries.slice(0, 60)] });
           return;
         }
         case "water": {

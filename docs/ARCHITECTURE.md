@@ -10,7 +10,7 @@ How the code fits together, the data it saves and sends, and how to add things.
    `game/arrival.ts` reads `?island=` and `?via=portal`, joins the island's room and, when visiting,
    waits for the host's snapshot.
 2. **Theme and layout.** `core/palette.ts setTheme()` swaps palette tokens before any material exists.
-   `layoutFor()` picks your saved layout, the host's published one, or the commons.
+   `layoutFor()` picks your saved layout, the host's published one, the commons or the market.
 3. **World.** `world/world.ts IslandWorld.build()` generates terrain, places objects, builds the portal
    islet and bridge, scatters the meadow, and derives spots (plots, cauldron, door…) and the walk mask.
 4. **Systems.** Farm, flowers, workshop, magic (+ spells, contraptions), social, weather, birds, life,
@@ -41,9 +41,28 @@ parameters; every system is built once per load from data.
 
 ### Save (`game/state.ts`, localStorage `af.save.v1`)
 
-Inventory (coins, ink, seeds, harvest, flowers, goods), can level and water, the 12 plots
-(crop, growth hours, wet hours), the 3 stone inscriptions, mailbox gifts, beehive honey, day and hour,
-and your island layout. `load()` migrates older saves by filling in missing fields.
+Coins, ink, the `bag` (every carried item by id, see below), tool levels (can, bottle, cauldron),
+the 12 plots (crop, growth hours, wet hours, overgrown), the 3 stone inscriptions, the shed, paid-for
+land, mailbox gifts, beehive honey, day and hour, and your island layout. `load()` migrates older
+saves: missing fields are filled in, and the old separate `seeds`/`harvest`/`flowers`/`goods`
+records move into the bag (`fromLegacy`). Use `count`, `give` and `take` to touch the bag.
+
+### Items and prices (`shared/items.ts`, `shared/prices.ts`)
+
+Every item has an id (`seed:wheat`, `crop:melon`, `flower:pink`, `honey`), a name, a category, a
+`price` (what a shop charges) and `pays` (what a shop gives). `CROPS` lives here too, shared with the
+server. Prices follow the **market day** (a real UTC day): each item swings ±15% by a hash of its id
+and the day, and each shop has one special (a sale, or an item it pays 1.5× for). All pure
+functions, so every player and the server agree without any state.
+
+### Shops (`market/`)
+
+`shops.ts` defines the home crate (`CRATE`: basic seeds, pays 80%, no daily prices) and the six
+market shops (`SHOPS`: keeper, building kind, what it sells and buys, a "soon" note for stock that
+comes later), and works out today's prices. `panel.ts` is the buy/sell panel for any shop.
+`market.ts` puts a keeper (a recoloured chibi witch) behind each counter on the market island and
+offers "talk to the keeper" actions. The shop buildings are `market`-category `KINDS`: the editor
+never offers them and `sanitizeLayout` drops them from home layouts.
 
 ### Island layout (`island/layout.ts`)
 
@@ -82,6 +101,8 @@ One WebSocket on `/net`, JSON messages.
 - `tools/blender/build_props.py`: Kenney models restyled (material name → token, with per-model
   overrides), plus everything modelled from primitives (buildings, trees, flowers, garden objects,
   crystals, roots). Output: `public/assets/props/*.glb`.
+- `tools/blender/build_market.py`: the market's six shop buildings, stall booth, fountain and notice
+  board. Each shop has an empty named `keeper` where its keeper stands.
 - `tools/blender/build_chibi.py`: the witch, one node per moving part with its pivot at the joint.
 - `tools/blender/build_furniture.py`: KayKit furniture for the cottage (keeps KayKit's texture atlas).
 - `tools/blender/preview.py`, `turnaround.py`, `inspect.py`: render previews and inspect files.
@@ -96,7 +117,10 @@ One WebSocket on `/net`, JSON messages.
   function there. Run `npm run assets`.
 - **A placeable object:** add it to `KINDS` in `island/layout.ts` (category, model, solid, optional
   `use`). It appears in the editor automatically. New behaviour goes in `farm/garden.ts`.
-- **A crop:** add it to `CROPS` in `game/state.ts` (and a model). Seeds keys and the market follow.
+- **A crop:** add it to `CROPS` in `shared/items.ts` (and a model). Its seed and crop items, the
+  seed bar and the shops follow.
+- **An item:** add it to `ITEMS` in `shared/items.ts` (widen `ItemId`), then list it in a shop's
+  `sells` or `buys` in `market/shops.ts`.
 - **A sigil:** add a shape to `SIGIL_SHAPES` and templates in `magic/recognizer.ts`, an effect in
   `magic/spells.ts`, an entry in `magic/grimoire.ts`, a repeat interval in `magic/contraptions.ts`.
   Add a test case.

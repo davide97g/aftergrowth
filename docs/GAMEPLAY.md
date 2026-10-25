@@ -32,14 +32,16 @@ Every system and its numbers. Values live in code; the file is named next to eac
   80, then 100c. Saves from before this keep all 12 open.
 - Watering can: **Tin** holds 6 pours, waters one plot. **Copper** (60c) holds 12, waters 3 in a row.
   Refill at the pond's edge, a wishing well or a rain barrel.
-- Sell crops and honey at the market crate; buy seeds there.
+- The market crate at home buys crops and honey at 80% and sells wheat, turnip and carrot seeds.
+  Everything else is at the Lantern Market.
 
 ## Flowers and ink (`farm/flowers.ts`, `farm/workshop.ts`)
 
 - Wild flowers can be picked; they regrow after 8 game hours. Flowers grown by magic can be picked too.
 - Ink bottle: **Ink pot** 12 drops, **Glass flask** (50c) 20, **Crystal decanter** (140c) 30.
 - Cauldron brews 2 flowers into: **Iron** 3 drops, **Copper** (80c) 4, **Moon** (200c) 5.
-- Can, bottle and cauldron upgrades are sold at the market crate.
+- Upgrades are sold at the Lantern Market: the bottle at the Inkwell, the can and cauldron at the
+  Outfitter.
 
 ## Magic (`magic/`, full design in `docs/magic.md`)
 
@@ -104,6 +106,26 @@ Every system and its numbers. Values live in code; the file is named next to eac
   Removing puts it in your shed; placing that kind again takes it from the shed for free. Moving,
   turning, scaling, reshaping and a new meadow are free. Growing the island past the largest size
   you've paid for costs 25c per 0.05×. Done is disabled while the bill is more than your coins.
+
+## Lantern Market (`market/`, design in `docs/MARKET.md`)
+
+- A shared island reached from the portal Atlas, like Blossom Commons. Six shops stand around a
+  fountain plaza; walk to a counter and press F to talk to its keeper.
+
+| Shop | Keeper | Sells | Buys |
+|---|---|---|---|
+| Seed & Sprout | Fern | all six seeds, 8 tree saplings (go to your shed) | crops |
+| The Inkwell | Odile | ink (5c a drop), flowers (2c), Glass flask, Crystal decanter | flowers (1c), ink (2c) |
+| Menagerie | Bramble | animals soon | honey |
+| Timber & Stone | Rowan | materials soon | |
+| Scriptorium | Hazel | scrolls and charms soon | |
+| Outfitter | Tilly | Copper can, Copper and Moon cauldrons | |
+
+- **Daily prices:** a market day is a real UTC day, the same for everyone. Each item's price moves
+  up to ±15% a day (↑/↓ against yesterday). Each shop has one special: a sale (0.6×) on something
+  it sells, or a wanted item it pays 1.5× for.
+- The stall row and notice board are there but open in a later update (player stalls).
+- **Satchel (I):** everything you carry, by kind (harvest, goods, flowers, seeds).
 
 ## Multiplayer (`net/`, `server/`)
 

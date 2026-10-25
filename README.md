@@ -22,7 +22,7 @@ npm run assets     # rebuild public/assets with Blender (raw packs: see CREDITS.
 ```
 
 Useful URL parameters while developing: `?t=18` start at 18:00, `?weather=rain` force weather,
-`?island=<id>` visit an island, `?island=commons` the shared island.
+`?island=<id>` visit an island, `?island=commons` the shared island, `?island=market` the market.
 
 ## Controls
 
@@ -37,6 +37,7 @@ Useful URL parameters while developing: `?t=18` start at 18:00, `?weather=rain` 
 | Say a phrase | T |
 | Edit your island | B |
 | Zoom | scroll / pinch |
+| Satchel | I |
 | Mute | M (or the clock panel) |
 | Time of day | clock pill, top right |
 
@@ -61,7 +62,8 @@ src/
                      weather, birds, ambient life (butterflies, fireflies, bunnies, clouds)
   island/            island shapes, layout data, terrain generator, special models, editor, costs
   player/            the witch (procedural animation)
-  farm/              plots, wild flowers, cauldron + market, garden objects (wells, hives, seats)
+  farm/              plots, wild flowers, cauldron, market crate, garden objects (wells, hives, seats)
+  market/            the Lantern Market: shops, prices, shop panel, keepers
   magic/             glyph recognizer, seal rules, ink overlay, spells, contraptions, grimoire
   net/               profile, WebSocket client, other players, atlas, mailbox
   house/             cottage interior, music box
@@ -69,9 +71,9 @@ src/
   ui/                HUD, fade, styles
   audio/             every sound, synthesised with Web Audio
 server/              island hub (WebSocket rooms, snapshots, deeds) + production server
-shared/              protocol types and the colour palette (used by game, server, Blender)
+shared/              protocol types, items and daily prices, the colour palette (game, server, Blender)
 tools/blender/       asset builders: props, the chibi witch, furniture; preview tools
-tests/               glyph recognizer, island layout and economy tests
+tests/               glyph recognizer, island layout, economy and market tests
 public/assets/       built .glb models (committed; rebuilt by `npm run assets`)
 art/                 concept art (Codex image generation, prompts alongside), reference, screenshots
 docs/                design and technical docs (below)

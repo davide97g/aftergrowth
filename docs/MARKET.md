@@ -228,6 +228,8 @@ All buttons.
 
 ## Build order
 
+Phase 1 is built (2026-10-25). Phases 2 to 6 are still to do.
+
 Each phase is playable on its own and ends with checks in the browser and `npm run check`.
 
 1. **Items and the island.** Item catalog, satchel, save migration, the market island with the six
