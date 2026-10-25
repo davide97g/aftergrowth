@@ -125,6 +125,8 @@ export interface Save {
   post: Post;
   /** tea that's still working: sunpetal until (real time), bluebell glyphs left, chamomile for tonight */
   tea?: { sunUntil?: number; steady?: number; dreams?: boolean };
+  /** the last season you were told about (season and its number) */
+  seenSeason?: string;
   /** your familiar: a cat, a fox or a frog, and its name */
   familiar: FamiliarSave;
   /** Aetherhold: honey mead until (real time), and the market day of the last wish, bell and royal delivery */

@@ -112,6 +112,30 @@ Every system and its numbers. Values live in code; the file is named next to eac
 | Campfire | flickers and glows all day |
 | Signpost | greets visitors with the owner's name |
 
+## Seasons and festivals (`shared/seasons.ts`, `world/festival.ts`)
+
+- Seasons follow the market day (a real UTC day), the same for everyone: seven days each, autumn →
+  winter → spring → summer. The clock panel shows the season, its day and the next festival.
+  `?season=winter` tries one out.
+- They tint every island on top of its theme: fresh greens in spring, deep greens in summer, orange
+  in autumn, snow in winter (white meadow, frosted trees, a frozen pond). Spring trees drop blossom,
+  autumn trees drop leaves, winter trees are bare.
+- Weather leans with them: rainy springs, clear summers, windy autumns; in winter it snows instead of
+  rains (snow waters crops like rain). Footprints stay in the snow a while, her breath puffs in the
+  cold, footsteps crunch. No butterflies or bees in winter; summer nights have more fireflies.
+- Crops grow a third faster in their seasons and at 0.6× in winter otherwise (the seed bar marks
+  in-season seeds with ✿, the plot prompt says "in season" or "slow in the cold"):
+  wheat summer/autumn, turnip autumn/winter, carrot spring/winter, corn summer, pumpkin autumn,
+  melon spring/summer.
+- The last two days of each season are its festival, from dusk to dawn (`?festival` tries it):
+
+| Season | Festival | What happens |
+|---|---|---|
+| Spring | the Petal Festival | a storm of glowing blossom falls over the island |
+| Summer | the Star Shower | shooting stars cross the sky |
+| Autumn | Lantern Night | paper lanterns rise from all over the island; F (where nothing else is to hand) lets one of your own go |
+| Winter | the Frost Lights | an aurora ripples over the sky |
+
 ## Weather (`world/weather.ts`)
 
 - Forecast for each island, day and part of the day (before 6, 6–14, 14–22, after 22):

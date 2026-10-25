@@ -25,7 +25,7 @@ export interface Ambience {
 }
 
 /** what a footstep lands on (see world/atmosphere.ts) */
-export type Step = "grass" | "soil" | "wood" | "stone" | "water";
+export type Step = "grass" | "soil" | "wood" | "stone" | "water" | "snow";
 
 type SpellSound = "growth" | "water" | "wind" | "light" | "flame" | "rainbow" | "bloom" | "fireflies" | "steam" | "fizzle";
 
@@ -381,6 +381,12 @@ class Sound {
       case "water":
         this.burst(t, 0.18, 0.06 * k, "bandpass", 1200, 1.2, undefined, 500);
         for (let i = 0; i < 3; i++) this.tone(rand(900, 1600), t + 0.03 + Math.random() * 0.12, 0.012, 0.05, "sine", undefined, rand(1700, 2400));
+        return;
+      case "snow":
+        // a soft crunch: a low thud and a crackle
+        this.burst(t, 0.12, 0.045 * k, "lowpass", rand(700, 1000), 0.8);
+        for (let i = 0; i < 4; i++) this.burst(t + Math.random() * 0.08, 0.012, 0.03 * k, "highpass", rand(2500, 4500));
+        return;
       default: this.burst(t, running ? 0.06 : 0.08, running ? 0.05 : 0.035, "bandpass", rand(600, 1000), 1.2);
     }
   }

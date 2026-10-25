@@ -3,6 +3,7 @@ import { sound } from "../audio/sound";
 import { prop } from "../core/assets";
 import type { Action } from "../game/interact";
 import { CANS, CROPS, CROP_IDS, type CropId, type Plot, type Save, clearPrice, count, give, take } from "../game/state";
+import { type Season, growthRate, inSeason } from "../../shared/seasons";
 
 const ROW = 4;
 
@@ -28,6 +29,16 @@ export class Farm {
   private views: PlotView[] = [];
   private models: Record<string, Object3D> = {};
   private time = 0;
+
+  /** the season: crops grow faster in theirs, slower in winter */
+  season: Season | null = null;
+
+  /** " · in season", " · slow in the cold" or nothing */
+  private seasonNote(crop: CropId) {
+    if (!this.season) return "";
+    if (inSeason(crop, this.season)) return " · in season";
+    return this.season === "winter" ? " · slow in the cold" : "";
+  }
 
   /** Set when this is someone else's farm: you may only water it, and that is sent to them. */
   visit: { owner: string; water: (plots: number[]) => void } | null = null;
@@ -84,7 +95,7 @@ export class Farm {
   update(dt: number, hours: number) {
     this.time += dt;
     this.state.plots.forEach((p, i) => {
-      if (p.crop && p.wet > 0 && stageOf(p) !== "ready") p.growth += Math.min(hours, p.wet);
+      if (p.crop && p.wet > 0 && stageOf(p) !== "ready") p.growth += Math.min(hours, p.wet) * (this.season ? growthRate(p.crop, this.season) : 1);
       p.wet = Math.max(0, p.wet - hours);
       this.draw(i, dt);
     });
@@ -169,7 +180,7 @@ export class Farm {
       const seed = count(st, `seed:${st.selected}`) > 0 ? st.selected : CROP_IDS.find((c) => count(st, `seed:${c}`) > 0);
       if (!seed) return { pos, reach: REACH, label: "Empty plot · buy seeds at the market crate", act: null };
       return {
-        pos, reach: REACH, label: `Plant ${CROPS[seed].name.toLowerCase()} (${count(st, `seed:${seed}`)} left)`,
+        pos, reach: REACH, label: `Plant ${CROPS[seed].name.toLowerCase()} (${count(st, `seed:${seed}`)} left)${this.seasonNote(seed)}`,
         act: () => {
           take(st, `seed:${seed}`);
           p.crop = seed;
@@ -193,14 +204,14 @@ export class Farm {
     if (p.wet < 1) {
       if (st.can.water <= 0) return { pos, reach: REACH, label: "Watering can is empty · fill it at the pond", act: null };
       return {
-        pos, reach: REACH, label: `Water ${CROPS[p.crop!].name.toLowerCase()} · ${pct}% · can ${st.can.water}/${CANS[st.can.level].holds}`,
+        pos, reach: REACH, label: `Water ${CROPS[p.crop!].name.toLowerCase()} · ${pct}% · can ${st.can.water}/${CANS[st.can.level].holds}${this.seasonNote(p.crop!)}`,
         act: () => {
           this.pour(i);
           this.onChange();
         },
       };
     }
-    return { pos, reach: REACH, label: `${CROPS[p.crop!].name} · ${pct}% · soil wet`, act: null };
+    return { pos, reach: REACH, label: `${CROPS[p.crop!].name} · ${pct}% · soil wet${this.seasonNote(p.crop!)}`, act: null };
   };
 
   /** One pour of the watering can: this plot, plus its row neighbours with a bigger can (and the next row with a sprinkler). */

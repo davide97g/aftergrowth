@@ -266,6 +266,10 @@ Six pieces, one after another:
 - **Tea and letters** (`ui/kettle.ts`, `game/post.ts`, `ui/letters.ts`): four teas from the four
   flower colours, drunk from the satchel; letters seeded by witch and day, with gifts and favours
   answered the next morning. The post rules are pure and tested.
+- **Seasons and festivals** (`shared/seasons.ts`, `world/festival.ts`): seven market days each, so
+  everyone shares them; palette tints on top of the island theme, a climate per season, snow (its own
+  point cloud), footprints and breath in winter, crop growth by season, and four festival nights
+  drawn mostly in the sky shader (aurora, meteors) plus instanced lanterns and a petal storm.
 
 ## How things were checked
 

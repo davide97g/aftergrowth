@@ -20,6 +20,7 @@ import {
   Object3D,
 } from "three";
 import type { Theme } from "../../shared/protocol";
+import type { Season } from "../../shared/seasons";
 import { PALETTE, type Token } from "../core/palette";
 import { KINDS } from "../island/layout";
 import { shared, toon, toonRamp } from "../render/toon";
@@ -27,7 +28,7 @@ import type { Mood } from "./daycycle";
 import type { IslandWorld } from "./world";
 
 /** What a footstep lands on. */
-export type Surface = "grass" | "soil" | "wood" | "stone" | "water";
+export type Surface = "grass" | "soil" | "wood" | "stone" | "water" | "snow";
 
 /** ground tokens that darken when wet */
 const WETTABLE: Token[] = ["grass", "grass-dark", "turf", "soil", "soil-dark", "path", "cobble", "cobble-dark", "moss"];
@@ -199,7 +200,14 @@ export class Atmosphere {
   /** the hives' hum, 0..1 near one by day */
   hum = 0;
 
-  constructor(scene: Scene, private world: IslandWorld, private theme: Theme) {
+  /** 0..1: the Petal Festival's blossom storm */
+  petalStorm = 0;
+  private prints: { mesh: Mesh; age: number }[] = [];
+  private nextPrint = 0;
+  private breaths: { mesh: Mesh; life: number }[] = [];
+  private nextBreath = 0;
+
+  constructor(scene: Scene, private world: IslandWorld, private theme: Theme, private season: Season | null = null) {
     const rand = rng(Math.round(world.bounds.radius * 1000) + world.layout.seed);
     const { center, radius } = world.bounds;
     const flatHere = (x: number, z: number) => {
@@ -214,7 +222,7 @@ export class Atmosphere {
     // puddles: hollows in the ground that fill when it rains
     const geo = new CircleGeometry(1, 20);
     geo.rotateX(-Math.PI / 2);
-    for (let tries = 0; tries < 400 && this.puddles.length < 9; tries++) {
+    for (let tries = 0; tries < 400 && this.puddles.length < (season === "winter" ? 0 : 9); tries++) {
       const x = center.x + (rand() * 2 - 1) * radius * 0.8;
       const z = center.z + (rand() * 2 - 1) * radius * 0.8;
       const r = 0.7 + rand() * 0.6;
@@ -276,10 +284,11 @@ export class Atmosphere {
     }
     const leafGeo = new IcosahedronGeometry(1, 0);
     leafGeo.scale(0.07, 0.014, 0.05);
-    // foliage takes the island's theme: orange in autumn, pink petals in blossom
-    this.leafMesh = new InstancedMesh(leafGeo, new MeshToonMaterial({ color: PALETTE.foliage, gradientMap: toonRamp() }), 60);
+    // foliage takes the island's theme (orange in autumn, pink in blossom); spring trees drop blossom
+    const leafColor = season === "spring" ? PALETTE["flower-pink"] : PALETTE.foliage;
+    this.leafMesh = new InstancedMesh(leafGeo, new MeshToonMaterial({ color: leafColor, emissive: PALETTE["flower-pink"], emissiveIntensity: 0, gradientMap: toonRamp() }), 140);
     this.leafMesh.frustumCulled = false;
-    for (let i = 0; i < 60; i++) {
+    for (let i = 0; i < 140; i++) {
       this.leafMesh.setMatrixAt(i, HIDDEN);
       this.leaves.push({ pos: new Vector3(), spin: new Euler(), rate: new Vector3(), seed: rand(), landed: 0, life: 1 });
     }
@@ -302,6 +311,29 @@ export class Atmosphere {
       scene.add(this.beeMesh);
     }
 
+    // footprints in the snow, and breath in the cold
+    if (season === "winter") {
+      const printGeo = new CircleGeometry(0.09, 8);
+      printGeo.rotateX(-Math.PI / 2);
+      printGeo.scale(0.75, 1, 1.25);
+      const printMat = new MeshToonMaterial({ color: "#8d9db6", gradientMap: toonRamp(), transparent: true, opacity: 0.8, depthWrite: false });
+      for (let i = 0; i < 48; i++) {
+        const mesh = new Mesh(printGeo, printMat.clone());
+        mesh.visible = false;
+        mesh.renderOrder = 2;
+        scene.add(mesh);
+        this.prints.push({ mesh, age: 99 });
+      }
+      const breathMat = new MeshToonMaterial({ color: "#ffffff", gradientMap: toonRamp(), transparent: true, opacity: 0.7, depthWrite: false });
+      const breathGeo = new IcosahedronGeometry(1, 0);
+      for (let i = 0; i < 8; i++) {
+        const mesh = new Mesh(breathGeo, breathMat);
+        mesh.visible = false;
+        scene.add(mesh);
+        this.breaths.push({ mesh, life: 1 });
+      }
+    }
+
     // splashes from puddles
     const dropMat = new MeshToonMaterial({ color: "#a9d8f5", gradientMap: toonRamp() });
     const dropGeo = new IcosahedronGeometry(1, 0);
@@ -318,6 +350,27 @@ export class Atmosphere {
     return this.puddles.find((p) => p.level > 0.15 && Math.hypot(p.x - x, p.z - z) < p.r * Math.sqrt(p.level) * 0.85) ?? null;
   }
 
+  /** A footprint pressed into the snow (winter only). `yaw` is the way she faces. */
+  footprint(at: Vector3, yaw: number, side: number) {
+    if (!this.prints.length) return;
+    const p = this.prints[this.nextPrint];
+    this.nextPrint = (this.nextPrint + 1) % this.prints.length;
+    p.mesh.position.set(at.x + Math.cos(yaw) * 0.09 * side, this.world.ground(at.x, at.z) + 0.012, at.z - Math.sin(yaw) * 0.09 * side);
+    p.mesh.rotation.y = yaw;
+    p.mesh.visible = true;
+    p.age = 0;
+  }
+
+  /** A puff of breath in the cold air. */
+  breathe(at: Vector3) {
+    if (!this.breaths.length) return;
+    const b = this.breaths[this.nextBreath];
+    this.nextBreath = (this.nextBreath + 1) % this.breaths.length;
+    b.mesh.position.copy(at);
+    b.life = 0;
+    b.mesh.visible = true;
+  }
+
   /** What a footstep at `at` lands on. */
   surface(at: Vector3): Surface {
     if (this.puddleAt(at.x, at.z)) return "water";
@@ -332,7 +385,7 @@ export class Atmosphere {
     for (const o of w.layout.objects) {
       if ((o.kind === "path_stone" || o.kind === "path_wood") && Math.hypot(o.x - at.x, o.z - at.z) < 0.65 * o.scale) return o.kind === "path_wood" ? "wood" : "stone";
     }
-    return "grass";
+    return this.season === "winter" ? "snow" : "grass";
   }
 
   /** Step in a puddle: a ring of droplets. */
@@ -362,7 +415,9 @@ export class Atmosphere {
     // the ground soaks up rain and dries in the sun
     if (rain > 0.3) this.wet = Math.min(1, this.wet + dt * 0.06 * rain);
     else this.wet = Math.max(0, this.wet - hours / (4 - day * 1.5));
-    for (const [t, base] of this.wetBase) (toon(t) as MeshToonMaterial).color.copy(base).multiplyScalar(1 - this.wet * 0.2);
+    // (snow doesn't darken)
+    const darken = this.season === "winter" ? 0 : this.wet * 0.2;
+    for (const [t, base] of this.wetBase) (toon(t) as MeshToonMaterial).color.copy(base).multiplyScalar(1 - darken);
 
     for (const p of this.puddles) {
       if (rain > 0.3) p.level = Math.min(1, p.level + dt * 0.05 * rain);
@@ -393,15 +448,22 @@ export class Atmosphere {
     this.dewMat.uniforms.uOpacity.value = dew;
     this.dew.visible = dew > 0.02;
 
-    // leaves: always a few in autumn, now and then elsewhere, many in the wind
-    const rate = (this.theme === "autumn" ? 1.1 : this.theme === "blossom" ? 0.7 : 0.15) * (1 + (wind - 1) * 3);
+    // leaves fall in autumn (or on an autumn island), blossom in spring; bare trees in winter
+    const s = this.season;
+    const base = s === "winter" ? 0 : s === "autumn" || this.theme === "autumn" ? 1.1 : s === "spring" || this.theme === "blossom" ? 0.7 : 0.15;
+    const rate = base * (1 + (wind - 1) * 3) + this.petalStorm * 12;
     this.leafTimer -= dt * rate;
-    if (this.leafTimer <= 0 && this.canopies.length) {
+    if (this.leafTimer <= 0 && (this.canopies.length || this.petalStorm > 0)) {
       this.leafTimer = 0.4 + Math.random() * 0.8;
       const leaf = this.leaves.find((l) => l.life >= 1);
       if (leaf) {
-        const b = this.canopies[Math.floor(Math.random() * this.canopies.length)];
-        leaf.pos.set(b.min.x + Math.random() * (b.max.x - b.min.x), b.min.y + Math.random() * (b.max.y - b.min.y), b.min.z + Math.random() * (b.max.z - b.min.z));
+        if (this.petalStorm > 0 && (Math.random() < 0.6 || !this.canopies.length)) {
+          // the storm comes from the sky, all around her
+          leaf.pos.set(player.x + (Math.random() - 0.5) * 16, player.y + 5 + Math.random() * 3, player.z + (Math.random() - 0.5) * 16);
+        } else {
+          const b = this.canopies[Math.floor(Math.random() * this.canopies.length)];
+          leaf.pos.set(b.min.x + Math.random() * (b.max.x - b.min.x), b.min.y + Math.random() * (b.max.y - b.min.y), b.min.z + Math.random() * (b.max.z - b.min.z));
+        }
         leaf.spin.set(Math.random() * 6, Math.random() * 6, Math.random() * 6);
         leaf.rate.set(1 + Math.random() * 2, 0.5 + Math.random(), 1 + Math.random() * 2);
         leaf.landed = 0;
@@ -414,7 +476,7 @@ export class Atmosphere {
       if (l.landed > 0) {
         // lies on the grass a while, then is gone
         l.landed += dt;
-        if (l.landed > 8) l.life = 1;
+        if (l.landed > (this.petalStorm > 0 ? 4 : 8)) l.life = 1;
         // kicked up by a passing witch
         if (Math.hypot(player.x - l.pos.x, player.z - l.pos.z) < 0.5 && l.landed > 0.5) {
           l.landed = 0;
@@ -437,14 +499,17 @@ export class Atmosphere {
           l.landed = 0.001;
         }
       }
-      const shrink = l.landed > 6 ? Math.max(0, 1 - (l.landed - 6) / 2) : 1;
+      const fade = this.petalStorm > 0 ? 3 : 6;
+      const shrink = (l.landed > fade ? Math.max(0, 1 - (l.landed - fade) / 1) : 1) * (1 + this.petalStorm * 0.7);
       if (l.life >= 1) this.leafMesh.setMatrixAt(i, HIDDEN);
       else this.leafMesh.setMatrixAt(i, m4.compose(l.pos, q.setFromEuler(l.spin), sv.set(shrink, shrink, shrink)));
     });
     this.leafMesh.instanceMatrix.needsUpdate = true;
+    // festival petals glow softly in the dusk
+    (this.leafMesh.material as MeshToonMaterial).emissiveIntensity = this.petalStorm * 0.6;
 
     // bees: out to a flower, a while there, home again; all inside at night and in the rain
-    const busy = mood.butterflies > 0.25 && rain < 0.3;
+    const busy = mood.butterflies > 0.25 && rain < 0.3 && this.season !== "winter";
     if (this.beeMesh) {
       this.bees.forEach((b, i) => {
         if (b.t >= 1) {
@@ -479,6 +544,20 @@ export class Atmosphere {
     }
     this.hum = busy ? this.hiveNear(player) : 0;
 
+    for (const p of this.prints) {
+      if (p.age > 30) continue;
+      p.age += dt;
+      (p.mesh.material as MeshToonMaterial).opacity = 0.8 * Math.min(1, (30 - p.age) / 8);
+      if (p.age > 30) p.mesh.visible = false;
+    }
+    for (const b of this.breaths) {
+      if (b.life >= 1) continue;
+      b.life = Math.min(1, b.life + dt / 1.6);
+      b.mesh.position.y += dt * 0.25;
+      b.mesh.position.x += dt * 0.1 * wind;
+      b.mesh.scale.setScalar(0.04 + b.life * 0.09);
+      if (b.life >= 1) b.mesh.visible = false;
+    }
     for (const d of this.drops) {
       if (d.life >= 1) continue;
       d.life = Math.min(1, d.life + dt / 0.45);

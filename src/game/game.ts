@@ -1,4 +1,4 @@
-import { Timer, Vector3 } from "three";
+import { Color, Timer, Vector3 } from "three";
 import { sound } from "../audio/sound";
 import { CameraRig } from "../core/camera";
 import { Input } from "../core/input";
@@ -32,6 +32,9 @@ import { TEAS, type TeaId } from "../../shared/items";
 import { KettlePanel } from "../ui/kettle";
 import { LettersPanel } from "../ui/letters";
 import { deliver } from "./post";
+import { FESTIVALS, SEASONS, SEASON_DAYS, SEASON_NAMES, type Season, dayOfSeason, daysToFestival, festivalOn, seasonOf } from "../../shared/seasons";
+import { marketDay } from "../../shared/prices";
+import { Festivities } from "../world/festival";
 import { sampleMood } from "../world/daycycle";
 import { Life } from "../world/life";
 import { Weather } from "../world/weather";
@@ -49,6 +52,16 @@ import { Rest } from "./rest";
 import { Stage } from "./stage";
 import { BASKETS, BOOTS, CROP_IDS, type CropId, type Inscription, type Save, forgetOldSave, inkMax, load, oldSave, resetSave, save, take } from "./state";
 import { PortalTravel } from "./travel";
+
+/** the pond's colour in winter, frozen over */
+const ICE = new Color("#cfe6f2");
+
+const SEASON_NOTES: Record<Season, string> = {
+  spring: "Blossom on the trees. Carrots and melons grow faster now.",
+  summer: "Long warm days. Wheat, corn and melons grow faster now.",
+  autumn: "Falling leaves and misty mornings. Wheat, turnips and pumpkins grow faster now.",
+  winter: "Snow on the meadow and ice on the pond. Turnips and carrots don't mind the cold; the rest grow slowly.",
+};
 
 /** One game day lasts 24 real minutes at 1× speed. */
 const HOURS_PER_SECOND = 1 / 60;
@@ -102,7 +115,11 @@ export async function startGame(account: Account) {
   const everyone = commons || market || kingdom;
   const mine = !visiting && !everyone;
   const theme = commons ? "blossom" : market || kingdom ? "meadow" : host ? host.theme : me.theme;
-  setTheme(theme);
+  // the season and its festival follow the market day; `?season=winter` and `?festival` try them out
+  const forcedSeason = params.get("season") as Season | null;
+  const season: Season = forcedSeason && SEASONS.includes(forcedSeason) ? forcedSeason : seasonOf();
+  const festival = params.has("festival") ? FESTIVALS[season] : forcedSeason ? null : festivalOn();
+  setTheme(theme, season);
   const state = load(HOME.plots, HOME.stones, me.id, saved);
   const layout = layoutFor(here, me, state);
   // the editor works on the world's copy, so Discard (or a timed save mid-edit) never keeps half an edit
@@ -122,10 +139,12 @@ export async function startGame(account: Account) {
   scene.add(witch.root);
   witch.onHum = () => sound.hum();
   const life = await Life.create(scene, world);
-  const atmos = new Atmosphere(scene, world, theme);
+  const atmos = new Atmosphere(scene, world, theme, season);
+  let foot = 1;
   witch.onFootstep = (at, running) => {
     const on = atmos.surface(at);
     if (on === "water") atmos.splash(at);
+    else if (on === "snow") atmos.footprint(at, witch.yaw, (foot = -foot));
     else life.footstep(at, running);
     sound.footstep(running, on);
     farm.brush(at);
@@ -149,6 +168,10 @@ export async function startGame(account: Account) {
   const input = new Input(canvas, rig.camera);
   const clock = { hour: Number(params.get("t") ?? state.hour), speed: 1 };
   const hud = new Hud(clock);
+  hud.season = season;
+  const sd = forcedSeason ? 0 : dayOfSeason(marketDay());
+  const toFest = forcedSeason ? 0 : daysToFestival(marketDay());
+  document.getElementById("clock-season")!.textContent = `${SEASON_NAMES[season]} · day ${sd + 1} of ${SEASON_DAYS} · ${festival ? `${FESTIVALS[season].name[0].toUpperCase()}${FESTIVALS[season].name.slice(1)} tonight` : `${FESTIVALS[season].name} in ${toFest} ${toFest === 1 ? "day" : "days"}`}`;
   const changed = (msg?: string) => {
     if (msg) {
       hud.pop(msg);
@@ -168,6 +191,7 @@ export async function startGame(account: Account) {
 
   const social = new Social(net, me, scene, rig.camera, hud, state, islandId, host);
   const farm = await Farm.create(scene, world.plots, view, changed);
+  farm.season = season;
   if (host) farm.visit = { owner: host.name, water: (plots) => net.send({ t: "water", island: host.id, plots }) };
   const flowers = new Flowers(world.flowerBeds, state, (c) => {
     const n = BASKETS[state.basket].per;
@@ -234,7 +258,7 @@ export async function startGame(account: Account) {
   social.onRemoteSpell = (spell, at, power) => magic.remoteCast(spell, at, power);
   social.useMailbox(world.mailbox, world.spots.mailbox);
   social.onLetters = () => letters.open();
-  const weather = new Weather(scene, seedOf(islandId));
+  const weather = new Weather(scene, seedOf(islandId), season);
   weather.force = (params.get("weather") as typeof weather.force) ?? null;
   weather.onRainbow = () => magic.remoteCast("rainbow", witch.position.clone().add(new Vector3(-2.5, 0, -2.5)), 3);
   const birds = new Birds(scene, world);
@@ -320,6 +344,9 @@ export async function startGame(account: Account) {
       removeEventListener("pagehide", leave);
     },
   });
+  const festivities = new Festivities(scene, world, festival, stage.sky, atmos);
+
+  let festivalAnnounced = false;
   const tweens = new Tweens();
   const travel = new PortalTravel(scene, world, witch, rig.camera, veil, tweens, life);
   social.onTravel = (island) => travel.depart(island, () => {
@@ -367,7 +394,7 @@ export async function startGame(account: Account) {
   // ---------- what F does outside ----------
   const outdoors = new Interactions(rig.camera);
   for (const p of [rest.action, garden.fill, garden.seat, garden.hive, garden.sign, cottage.door, workshop.cauldron, workshop.market,
-    workshop.pondside, (near: Vector3) => familiar?.action(near) ?? null, ...(bazaar && stalls ? [bazaar.action, stalls.action] : []), ...(realm?.actions ?? []), palaceDoor, magic.contraptions.action, farm.action, flowers.action, gather.action, animals.action, animals.trough, social.mailbox, portal]) outdoors.add(p);
+    workshop.pondside, festivities.action, (near: Vector3) => familiar?.action(near) ?? null, ...(bazaar && stalls ? [bazaar.action, stalls.action] : []), ...(realm?.actions ?? []), palaceDoor, magic.contraptions.action, farm.action, flowers.action, gather.action, animals.action, animals.trough, social.mailbox, portal]) outdoors.add(p);
   outdoors.onAct = () => witch.react("gesture");
   input.onPick = (p) => (cottage.inside ? cottage.indoors : outdoors).clicked(p);
 
@@ -396,6 +423,7 @@ export async function startGame(account: Account) {
   const timer = new Timer();
   /** seconds the witch has stood still, so the familiar knows when to nap */
   let idle = 0;
+  let breath = 1;
   const loop = (now: number) => {
     timer.update(now);
     const dt = Math.min(timer.getDelta(), 0.05);
@@ -408,9 +436,17 @@ export async function startGame(account: Account) {
     clock.hour = (clock.hour + hours) % 24;
     const mood = sampleMood(clock.hour);
     weather.update(dt, state.day, clock.hour, witch.position, mood);
+    // winter: the pond freezes over
+    // no butterflies in the snow; long summer nights have more fireflies
+    if (season === "winter") {
+      mood.water.lerp(ICE, 0.6);
+      mood.butterflies = 0;
+      mood.fireflies *= 0.2;
+    } else if (season === "summer") mood.fireflies = Math.min(1, mood.fireflies * 1.4);
     magic.baseWind = weather.windStrength;
     if (weather.raining > 0.4 && mine) farm.rain();
-    stage.applyMood(mood, clock.hour, weather.raining, weather.overcast);
+    // no raindrop rings on ice
+    stage.applyMood(mood, clock.hour, season === "winter" ? 0 : weather.raining, weather.overcast);
     if (world instanceof KingdomWorld) {
       syncCuts();
       world.animate(shared.uTime.value, mood.glow);
@@ -448,6 +484,16 @@ export async function startGame(account: Account) {
     life.wind = weather.windStrength;
     life.update(dt, mood, witch.position);
     atmos.update(dt, hours, clock.hour, mood, weather.raining, weather.windStrength, witch.position);
+    festivities.update(dt, mood);
+    if (festival && !festivalAnnounced && festivities.level > 0.3 && !cottage.inside) {
+      festivalAnnounced = true;
+      hud.toast(`Tonight: ${festival.name}`, festival.note);
+    }
+    // breath in the cold
+    if (season === "winter" && !cottage.inside && (breath -= dt) <= 0) {
+      breath = 2.2 + Math.random();
+      atmos.breathe(witch.position.clone().add(new Vector3(Math.sin(witch.yaw) * 0.28, 0.95, Math.cos(witch.yaw) * 0.28)));
+    }
     idle = witch.speed > 0.2 || magic.drawing ? 0 : idle + dt;
     if (familiar) {
       familiar.away = cottage.inside || travel.active;
@@ -512,6 +558,12 @@ export async function startGame(account: Account) {
   if (here.viaPortal) void travel.arrive(world.portalPos.clone().add(new Vector3(1.4, 0, 1.4)));
   if (visiting) hud.toast(`${host!.name}'s island`, "Water their crops, leave a gift in the mailbox. The portal takes you home.");
   if (commons) hud.toast("Blossom Commons", "Everyone's island meets here.");
+  // a new season: say so once
+  const seasonKey = `${season}-${Math.floor(marketDay() / SEASON_DAYS)}`;
+  if (mine && !visiting && state.seenSeason !== seasonKey && !forcedSeason) {
+    state.seenSeason = seasonKey;
+    setTimeout(() => hud.toast(`${SEASON_NAMES[season]} on the islands`, SEASON_NOTES[season]), 4500);
+  }
   if (market) hud.toast("Lantern Market", "Six shops, new prices every day. Talk to a keeper at their counter.");
   if (kingdom) hud.toast("Aetherhold", "The royal city, seat of magic. Climb to the palace; the tavern, the Arcanum and the spell range are on the way.");
   // handy in the browser console while developing

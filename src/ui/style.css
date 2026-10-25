@@ -788,3 +788,4 @@ body.editing #inventory, body.editing #hint, body.editing #prompt, body.editing 
 #kettle .teas .act { grid-column: 2; grid-row: 1 / span 3; }
 #kettle .note { margin: 14px 0 0; font: italic 0.9rem var(--f-body); opacity: 0.8; }
 
+#clock-season { margin: 0 0 8px; font: italic 0.95rem/1.3 var(--f-body); }
