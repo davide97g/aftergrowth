@@ -4,7 +4,7 @@ import { dirname } from "node:path";
 import { type WebSocket, WebSocketServer } from "ws";
 import type { AtlasEntry, ClientMsg, Deed, IslandSnap, Listing, Pose, Profile, ServerMsg } from "../shared/protocol.ts";
 import { CROPS, STALL, isItem, stallBounds } from "../shared/items.ts";
-import { HUB_ID, MARKET_ID, PHRASES } from "../shared/protocol.ts";
+import { HAT_STYLES, HUB_ID, MARKET_ID, PHRASES } from "../shared/protocol.ts";
 import { defaultHome, sanitizeLayout } from "../src/island/layout.ts";
 
 const seedOf = (id: string) => {
@@ -108,7 +108,7 @@ export function attachHub(http: Server, file: string) {
         const known = store.tokens[p.id];
         if (known && known !== m.token) return ws.close(4001, "token");
         store.tokens[p.id] = m.token;
-        c.profile = { id: p.id, name: clean(p.name, 24) || "Witch", color: isColor(p.color) ? p.color : "#4a5bb5" };
+        c.profile = { id: p.id, name: clean(p.name, 24) || "Witch", color: isColor(p.color) ? p.color : "#4a5bb5", hat: HAT_STYLES.includes(p.hat!) ? p.hat : "classic" };
         const st = store.islands[p.id];
         send(c, { t: "welcome", deeds: st?.deeds ?? [] });
         if (st) st.lastSeen = Date.now();

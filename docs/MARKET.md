@@ -228,7 +228,7 @@ All buttons.
 
 ## Build order
 
-Phases 1 to 5 are built (2026-10-25). Phase 6 (polish) is still to do.
+All six phases are built (2026-10-25).
 
 Each phase is playable on its own and ends with checks in the browser and `npm run check`.
 

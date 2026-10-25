@@ -188,19 +188,24 @@ export class Farm {
     return { pos, reach: REACH, label: `${CROPS[p.crop!].name} · ${pct}% · soil wet`, act: null };
   };
 
-  /** One pour of the watering can: this plot, plus its row neighbours with a bigger can. */
+  /** One pour of the watering can: this plot, plus its row neighbours with a bigger can (and the next row with a sprinkler). */
   private pour(i: number): number[] {
     const st = this.state;
     st.can.water--;
     sound.pour();
-    const reach = CANS[st.can.level].reach;
+    const { reach, rows } = CANS[st.can.level];
+    const lastRow = Math.floor((this.state.plots.length - 1) / ROW);
     const row = Math.floor(i / ROW);
+    // the second row is the one behind, or in front on the last row
+    const rowsHit = rows > 1 ? [row, row < lastRow ? row + 1 : row - 1] : [row];
     const hit: number[] = [];
-    for (let k = -(reach - 1) / 2; k <= (reach - 1) / 2; k++) {
-      const j = i + k;
-      if (j < 0 || j >= this.state.plots.length || Math.floor(j / ROW) !== row) continue;
-      this.state.plots[j].wet = WET_HOURS;
-      if (this.state.plots[j].crop) hit.push(j);
+    for (const r of rowsHit) {
+      for (let k = -(reach - 1) / 2; k <= (reach - 1) / 2; k++) {
+        const j = r * ROW + (i % ROW) + k;
+        if (j < 0 || j >= this.state.plots.length || Math.floor(j / ROW) !== r) continue;
+        this.state.plots[j].wet = WET_HOURS;
+        if (this.state.plots[j].crop) hit.push(j);
+      }
     }
     return hit;
   }

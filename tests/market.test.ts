@@ -5,7 +5,7 @@ import { SWING, marketDay, special, swing } from "../shared/prices.ts";
 import { fromLegacy, newGame } from "../src/game/state.ts";
 import { KINDS, MARKET_SHOPS, coast, marketLayout } from "../src/island/layout.ts";
 import { radiusAt } from "../src/island/shapes.ts";
-import { CRATE, SCROLLS, SHOPS, buyPrice, offerKey, sellPrice } from "../src/market/shops.ts";
+import { CRATE, SCROLLS, SHOPS, buyPrice, offerKey, sellPrice, todaysSpecial } from "../src/market/shops.ts";
 
 test("prices swing within bounds and are the same for everyone on a day", () => {
   const day = marketDay(Date.UTC(2026, 9, 25, 12));
@@ -76,4 +76,22 @@ test("stall prices are bounded around each item's base price", () => {
     assert.ok(b.min >= 1 && b.min <= b.max, id);
   }
   assert.deepEqual(stallBounds("egg"), { min: 3, max: 27 });
+});
+
+test("a charm made from bought ink never beats the shop's normal price for it", () => {
+  // the cheapest charm to inscribe: one sigil, inscribed at double ink, on the cheapest ink day, plus a blank
+  const ink = SHOPS.find((s) => s.id === "ink")!;
+  const scriptorium = SHOPS.find((s) => s.id === "scriptorium")!;
+  const save = newGame(12, 3);
+  const day0 = marketDay(Date.UTC(2026, 9, 25));
+  for (let day = day0; day < day0 + 120; day++) {
+    const drop = buyPrice(ink, { ink: true }, save, day)!;
+    const blank = buyPrice(scriptorium, { item: "charm_blank" }, save, day)!;
+    for (const c of ["growth", "water", "wind", "light", "flame"] as const) {
+      const pays = sellPrice(scriptorium, `charm:${c}`, day);
+      const sp = todaysSpecial(scriptorium, day);
+      if (sp?.kind === "wanted") continue; // a wanted day is meant to reward the witch who draws
+      assert.ok(2 * drop + blank >= pays - 4, `${c} on day ${day}: costs ${2 * drop + blank}, pays ${pays}`);
+    }
+  }
 });

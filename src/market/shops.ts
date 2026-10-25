@@ -1,15 +1,16 @@
 import { CHARM_SPELLS, CROP_IDS, FLOWER_COLORS, INK_PRICE, ITEMS, type ItemId, MATERIALS, type Material } from "../../shared/items.ts";
 import { SALE, WANTED, type Special, special, swing } from "../../shared/prices.ts";
-import { BOTTLES, BREW_FLOWERS, CANS, CAULDRONS, type Save } from "../game/state.ts";
+import type { HatStyle } from "../../shared/protocol.ts";
+import { BASKETS, BOOTS, BOTTLES, BREW_FLOWERS, CANS, CAULDRONS, PENS, type Save } from "../game/state.ts";
 import { PRICES } from "../island/costs.ts";
 import { KINDS, type Kind } from "../island/layout.ts";
 import type { Sigil } from "../magic/recognizer.ts";
 import { ANIMALS, ANIMAL_KINDS, FEED, isAnimal } from "../farm/livestock.ts";
 
-export type GearId = "can" | "bottle" | "cauldron";
+export type GearId = "can" | "bottle" | "cauldron" | "pen" | "boots" | "basket";
 
 /** Something a shop sells: an item, drops of ink, the next level of a tool, a sapling or an animal for the shed, or a scroll. */
-export type Offer = { item: ItemId } | { ink: true } | { gear: GearId } | { shed: Kind } | { scroll: Sigil };
+export type Offer = { item: ItemId } | { ink: true } | { gear: GearId } | { shed: Kind } | { scroll: Sigil } | { hat: HatStyle };
 
 /** Scrolls teach the sigils a new witch doesn't know. Flame is only sold once you know light. */
 export const SCROLLS: Partial<Record<Sigil, { price: number; needs?: Sigil; blurb: string }>> = {
@@ -64,7 +65,7 @@ export const SHOPS: Shop[] = [
   {
     id: "ink", name: "The Inkwell", building: "shop_ink", daily: true, rate: 1,
     keeper: { name: "Odile", color: "#3b3570", greeting: "Ink by the drop, flowers by the stem, bottles to keep them in." },
-    sells: [{ ink: true }, ...FLOWERS.map((id): Offer => ({ item: id })), { gear: "bottle" }],
+    sells: [{ ink: true }, ...FLOWERS.map((id): Offer => ({ item: id })), { gear: "bottle" }, { gear: "pen" }],
     buys: [...FLOWERS, "ink"],
   },
   {
@@ -92,9 +93,8 @@ export const SHOPS: Shop[] = [
   {
     id: "outfitter", name: "Outfitter", building: "shop_hat", daily: true, rate: 1,
     keeper: { name: "Tilly", color: "#d0587e", greeting: "Better tools, happier witch." },
-    sells: [{ gear: "can" }, { gear: "cauldron" }],
+    sells: [{ gear: "can" }, { gear: "cauldron" }, { gear: "boots" }, { gear: "basket" }, ...(["wide", "tall", "crown"] as HatStyle[]).map((h): Offer => ({ hat: h }))],
     buys: [],
-    soon: "Boots, baskets and hats are still on the sewing table.",
   },
 ];
 
@@ -104,6 +104,7 @@ export function offerKey(o: Offer): string {
   if ("ink" in o) return "ink";
   if ("gear" in o) return `gear:${o.gear}`;
   if ("scroll" in o) return `scroll:${o.scroll}`;
+  if ("hat" in o) return `hat:${o.hat}`;
   return `shed:${o.shed}`;
 }
 
@@ -112,13 +113,15 @@ export function offerName(o: Offer): string {
   if ("ink" in o) return "Ink";
   if ("shed" in o) return isAnimal(o.shed) ? KINDS[o.shed].label : `${KINDS[o.shed].label} sapling`;
   if ("scroll" in o) return `${o.scroll[0].toUpperCase()}${o.scroll.slice(1)} scroll`;
+  if ("hat" in o) return HATS[o.hat].name;
   return o.gear;
 }
 
 export function todaysSpecial(shop: Shop, day: number): Special | null {
   if (!shop.daily) return null;
-  // things players grow never go on sale: another shop may want them the same day
-  const sells = shop.sells.filter((o) => !("gear" in o) && !("scroll" in o) && !("item" in o && ITEMS[o.item].grown)).map(offerKey);
+  // things players grow never go on sale (another shop may want them the same day), and neither
+  // does ink, or cheap ink would make charms a coin press without ever picking a flower
+  const sells = shop.sells.filter((o) => !("gear" in o) && !("scroll" in o) && !("hat" in o) && !("ink" in o) && !("item" in o && ITEMS[o.item].grown)).map(offerKey);
   const wants = shop.buys.filter((id) => id !== "ink" && ITEMS[id].grown);
   return special(shop.id, sells, wants, day);
 }
@@ -127,6 +130,7 @@ export function todaysSpecial(shop: Shop, day: number): Special | null {
 export function buyPrice(shop: Shop, o: Offer, s: Save, day: number): number | null {
   if ("gear" in o) return gear(s, o.gear).next?.price ?? null;
   if ("scroll" in o) return s.sigils.includes(o.scroll) ? null : SCROLLS[o.scroll]!.price;
+  if ("hat" in o) return s.hats.includes(o.hat) ? null : HATS[o.hat].price;
   const base = "item" in o ? ITEMS[o.item].price : "ink" in o ? INK_PRICE.price : isAnimal(o.shed) ? ANIMALS[o.shed].price : PRICES[o.shed];
   if (!shop.daily) return base;
   const key = offerKey(o);
@@ -148,25 +152,46 @@ export function trend(id: string, day: number): -1 | 0 | 1 {
   return Math.abs(d) < 0.02 ? 0 : d > 0 ? 1 : -1;
 }
 
+type Level = { name: string; price: number; mats?: Partial<Record<Material, number>> };
+
+/** Every tool with levels: where its level is kept in the save, and what the next one does. */
+const TOOLS: Record<GearId, { levels: readonly Level[]; get: (s: Save) => number; up: (s: Save) => void; blurb: (s: Save, next: number) => string }> = {
+  can: {
+    levels: CANS, get: (s) => s.can.level,
+    up: (s) => {
+      s.can.level++;
+      s.can.water = CANS[s.can.level].holds;
+    },
+    blurb: (_, n) => `holds ${CANS[n].holds} pours and waters ${CANS[n].reach} plots in a row${CANS[n].rows > 1 ? `, ${CANS[n].rows} rows deep` : ""}.`,
+  },
+  bottle: { levels: BOTTLES, get: (s) => s.bottle, up: (s) => void s.bottle++, blurb: (_, n) => `holds ${BOTTLES[n].holds} drops of ink.` },
+  cauldron: { levels: CAULDRONS, get: (s) => s.cauldron, up: (s) => void s.cauldron++, blurb: (_, n) => `brews ${BREW_FLOWERS} flowers into ${CAULDRONS[n].ink} drops.` },
+  pen: { levels: PENS, get: (s) => s.pen, up: (s) => void s.pen++, blurb: (_, n) => (n === 1 ? "draws dots without spending ink." : "carves and inscribes for 1.5× the ink instead of 2×.") },
+  boots: { levels: BOOTS, get: (s) => s.boots, up: (s) => void s.boots++, blurb: () => "walk and run a quarter faster." },
+  basket: { levels: BASKETS, get: (s) => s.basket, up: (s) => void s.basket++, blurb: () => "every flower you pick counts twice." },
+};
+
 /** A tool's current level, the next one (if any), what it does and how to fit it. */
 export function gear(s: Save, id: GearId) {
-  const next: { name: string; price: number; mats?: Partial<Record<Material, number>> } | undefined =
-    id === "can" ? CANS[s.can.level + 1] : id === "bottle" ? BOTTLES[s.bottle + 1] : CAULDRONS[s.cauldron + 1];
-  const now = id === "can" ? CANS[s.can.level].name : id === "bottle" ? BOTTLES[s.bottle].name : CAULDRONS[s.cauldron].name;
-  const blurb = !next ? "" : id === "can" ? `holds ${CANS[s.can.level + 1].holds} pours and waters ${CANS[s.can.level + 1].reach} plots in a row.`
-    : id === "bottle" ? `holds ${BOTTLES[s.bottle + 1].holds} drops of ink.` : `brews ${BREW_FLOWERS} flowers into ${CAULDRONS[s.cauldron + 1].ink} drops.`;
+  const t = TOOLS[id];
+  const level = t.get(s);
+  const next: Level | undefined = t.levels[level + 1];
   const mats = next?.mats ?? {};
   return {
-    now, next, blurb, mats,
+    now: t.levels[level].name, next, blurb: next ? t.blurb(s, level + 1) : "", mats,
     /** enough materials for the next level (coins are checked by the price) */
     hasMats: () => Object.entries(mats).every(([m, n]) => (s.bag[m as Material] ?? 0) >= n!),
     buy: () => {
       for (const [m, n] of Object.entries(mats)) s.bag[m as Material] = (s.bag[m as Material] ?? 0) - n!;
-      if (id === "can") {
-        s.can.level++;
-        s.can.water = CANS[s.can.level].holds;
-      } else if (id === "bottle") s.bottle++;
-      else s.cauldron++;
+      t.up(s);
     },
   };
 }
+
+/** Hat shapes at the Outfitter; the classic one every witch starts with. */
+export const HATS: Record<HatStyle, { name: string; price: number; blurb: string }> = {
+  classic: { name: "Classic hat", price: 0, blurb: "the one you started with." },
+  wide: { name: "Wide-brim hat", price: 30, blurb: "a brim wide enough to nap under." },
+  tall: { name: "Tall crooked hat", price: 45, blurb: "taller, and the tip bends twice." },
+  crown: { name: "Flower crown", price: 60, blurb: "no hat at all, just flowers." },
+};

@@ -16,6 +16,8 @@ export interface Ambience {
   water: number;
   /** a fire nearby, 0..1 */
   fire: number;
+  /** the market's bustle, 0..1 */
+  crowd: number;
   inside: boolean;
 }
 
@@ -31,11 +33,11 @@ class Sound {
   /** ambient beds go through here, muffled indoors */
   private outside!: BiquadFilterNode;
   private noise!: AudioBuffer;
-  private beds: Record<"wind" | "rain" | "water" | "fire" | "pen", { gain: GainNode; filter: BiquadFilterNode }> | null = null;
+  private beds: Record<"wind" | "rain" | "water" | "fire" | "pen" | "crowd", { gain: GainNode; filter: BiquadFilterNode }> | null = null;
   private windFilter = 0;
   private penLevel = 0;
-  private next = { bird: 2, cricket: 1, crackle: 0, drop: 0 };
-  private amb: Ambience = { wind: 0, rain: 0, day: 1, water: 0, fire: 0, inside: false };
+  private next = { bird: 2, cricket: 1, crackle: 0, drop: 0, voice: 1 };
+  private amb: Ambience = { wind: 0, rain: 0, day: 1, water: 0, fire: 0, crowd: 0, inside: false };
   muted = false;
   onMute: (muted: boolean) => void = () => {};
 
@@ -113,6 +115,7 @@ class Sound {
       water: bed("lowpass", 420, 0.8),
       fire: bed("lowpass", 260, 0.6),
       pen: bed("bandpass", 3200, 1.4, this.master),
+      crowd: bed("bandpass", 520, 1.1),
     };
   }
 
@@ -132,6 +135,8 @@ class Sound {
     this.beds.rain.gain.gain.setTargetAtTime(amb.rain * 0.09 * (amb.inside ? 0.6 : 1), t, 0.6);
     this.beds.water.gain.gain.setTargetAtTime(amb.water * 0.05 * indoor, t, 0.4);
     this.beds.fire.gain.gain.setTargetAtTime(amb.fire * 0.06, t, 0.3);
+    // a soft hum of people, swelling and fading like a real crowd
+    this.beds.crowd.gain.gain.setTargetAtTime(amb.crowd * (0.018 + 0.01 * Math.sin(this.windFilter * 0.9)) * indoor, t, 0.5);
     // the pen scratches only while it moves
     this.penLevel = Math.max(0, this.penLevel - dt * 6);
     this.beds.pen.gain.gain.setTargetAtTime(this.penLevel * 0.05, t, 0.03);
@@ -141,6 +146,11 @@ class Sound {
     n.cricket -= dt;
     n.crackle -= dt;
     n.drop -= dt;
+    n.voice -= dt;
+    if (n.voice <= 0) {
+      n.voice = rand(0.4, 1.6);
+      if (amb.crowd > 0.1 && !amb.inside) this.voice(amb.crowd);
+    }
     if (n.bird <= 0) {
       n.bird = rand(2.5, 8);
       if (Math.random() < amb.day * (1 - amb.rain) && !amb.inside) this.bird();
@@ -222,6 +232,23 @@ class Sound {
     const t = this.now;
     if (t === null) return;
     this.burst(t, rand(0.008, 0.03), 0.05 * level * rand(0.4, 1), "highpass", rand(1200, 3000));
+  }
+
+  /** Somebody across the plaza says something: a couple of soft vowel-ish syllables. */
+  private voice(level: number) {
+    const t = this.now;
+    if (t === null) return;
+    const base = rand(160, 320);
+    const n = 1 + Math.floor(Math.random() * 3);
+    for (let i = 0; i < n; i++) {
+      const at = t + i * rand(0.12, 0.2);
+      const f = this.ctx!.createBiquadFilter();
+      f.type = "bandpass";
+      f.frequency.value = rand(500, 1100);
+      f.Q.value = 4;
+      f.connect(this.outside);
+      this.tone(base * rand(0.9, 1.2), at, 0.012 * level, 0.12, "sawtooth", f);
+    }
   }
 
   private drop(level: number) {
@@ -341,6 +368,13 @@ class Sound {
     if (t === null) return;
     this.burst(t, 0.05, 0.08, "highpass", 2500);
     this.tone(900, t, 0.03, 0.08, "square", undefined, 600);
+  }
+
+  /** The little bell on a shop counter. */
+  bell() {
+    const t = this.now;
+    if (t === null) return;
+    for (const [f, v] of [[1760, 0.04], [2637, 0.015], [4186, 0.008]] as const) this.tone(f, t, v, 1.1);
   }
 
   /** Something picked up, harvested or bought. */

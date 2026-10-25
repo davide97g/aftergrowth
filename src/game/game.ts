@@ -34,7 +34,7 @@ import { setupEditor } from "./editing";
 import { Interactions } from "./interact";
 import { Rest } from "./rest";
 import { Stage } from "./stage";
-import { CROP_IDS, type CropId, type Inscription, type Save, load, resetSave, save } from "./state";
+import { BASKETS, BOOTS, CROP_IDS, type CropId, type Inscription, type Save, load, resetSave, save } from "./state";
 import { PortalTravel } from "./travel";
 
 /** One game day lasts 24 real minutes at 1× speed. */
@@ -84,7 +84,7 @@ export async function startGame() {
   const scene = stage.scene;
   const world = await buildWorld(scene, { kind: commons ? "commons" : market ? "market" : "home", layout });
   stage.fitShadows(world.bounds.center, world.bounds.radius);
-  const witch = await Witch.load(me.color);
+  const witch = await Witch.load(me.color, me.hat);
   witch.position.copy(world.spawn);
   witch.root.rotation.y = Math.PI / 4;
   scene.add(witch.root);
@@ -118,7 +118,10 @@ export async function startGame() {
   const social = new Social(net, me, scene, rig.camera, hud, state, islandId, host);
   const farm = await Farm.create(scene, world.plots, view, changed);
   if (host) farm.visit = { owner: host.name, water: (plots) => net.send({ t: "water", island: host.id, plots }) };
-  const flowers = new Flowers(world.flowerBeds, state, (c) => changed(`+1 ${c} flower`));
+  const flowers = new Flowers(world.flowerBeds, state, (c) => {
+    const n = BASKETS[state.basket].per;
+    changed(`+${n} ${c} flower${n > 1 ? "s" : ""}`);
+  });
   const shops = new ShopPanel(state, changed);
   const satchel = new Satchel(state);
   hud.onInventory = () => {
@@ -127,6 +130,11 @@ export async function startGame() {
     stalls?.render();
   };
   shops.onLearn = (s) => magic.learnSigil(s);
+  shops.wearing = () => me.hat ?? "classic";
+  shops.onWear = (h) => {
+    witch.setHat(h);
+    social.wearHat(h);
+  };
   satchel.onUse = (spell) => magic.useCharm(spell);
   const workshop = new Workshop(scene, world.spots, state, changed, world.pond, () => shops.open(CRATE));
   const bazaar = market ? await Market.create(scene, world, shops) : null;
@@ -250,6 +258,7 @@ export async function startGame() {
     input.enabled = !editor.active;
     const wish = rest.update(busy ? new Vector3() : input.wish(witch.position), null);
     const before = witch.position.clone();
+    witch.speedUp = BOOTS[state.boots].speed;
     witch.update(dt, wish, input.running, cottage.mask);
     rest.update(new Vector3(), garden.swingOffset());
     if (wish.lengthSq() > 0.01 && before.distanceToSquared(witch.position) < 1e-7) input.dropTarget();
@@ -280,6 +289,7 @@ export async function startGame() {
         const p = f.getWorldPosition(new Vector3());
         return [p.x, p.z] as Pt;
       }), 5),
+      crowd: market ? 1 : 0,
       inside: cottage.inside,
     });
 

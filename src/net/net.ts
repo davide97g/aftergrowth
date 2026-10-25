@@ -66,7 +66,7 @@ export class Net {
     ws.onopen = () => {
       this.retry = 1000;
       this.online = true;
-      this.raw({ t: "hello", profile: { id: this.me.id, name: this.me.name, color: this.me.color }, token: this.me.token });
+      this.raw({ t: "hello", profile: { id: this.me.id, name: this.me.name, color: this.me.color, hat: this.me.hat }, token: this.me.token });
       if (this.island) this.raw({ t: "enter", island: this.island });
       this.onStatus(true);
     };

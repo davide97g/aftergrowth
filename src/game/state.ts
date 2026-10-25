@@ -1,4 +1,4 @@
-import type { Gift } from "../../shared/protocol";
+import type { Gift, HatStyle } from "../../shared/protocol";
 import type { IslandLayout } from "../island/layout";
 import type { SpellId } from "../magic/glyph";
 import type { Herd } from "../farm/livestock.ts";
@@ -8,10 +8,11 @@ import { type CropId, FLOWER_COLORS, type FlowerColor, ITEMS, type ItemId } from
 
 export { CROPS, CROP_IDS, type CropDef, type CropId, FLOWER_COLORS, type FlowerColor, type ItemId } from "../../shared/items.ts";
 
-/** Watering can levels: how much it holds and how many plots in a row one pour reaches. */
+/** Watering can levels: how much it holds, how many plots in a row one pour reaches, and how many rows. */
 export const CANS = [
-  { name: "Tin can", holds: 6, reach: 1, price: 0 },
-  { name: "Copper can", holds: 12, reach: 3, price: 60 },
+  { name: "Tin can", holds: 6, reach: 1, rows: 1, price: 0 },
+  { name: "Copper can", holds: 12, reach: 3, rows: 1, price: 60 },
+  { name: "Brass sprinkler", holds: 20, reach: 3, rows: 2, price: 180, mats: { brass: 4 } },
 ] as const;
 /** Ink bottle levels: drops it holds. */
 export const BOTTLES = [
@@ -24,6 +25,23 @@ export const CAULDRONS = [
   { name: "Iron cauldron", ink: 3, price: 0 },
   { name: "Copper cauldron", ink: 4, price: 80 },
   { name: "Moon cauldron", ink: 5, price: 200, mats: { brass: 3 } },
+] as const;
+
+/** Pens: a silver nib draws dots without ink; a gold nib carves and inscribes for 1.5× instead of 2×. */
+export const PENS = [
+  { name: "Reed pen", price: 0 },
+  { name: "Silver nib", price: 90 },
+  { name: "Gold nib", price: 220, mats: { brass: 2 } },
+] as const;
+/** Mossy boots: walk and run a quarter faster. */
+export const BOOTS = [
+  { name: "Old boots", price: 0, speed: 1 },
+  { name: "Mossy boots", price: 70, speed: 1.25 },
+] as const;
+/** A wicker basket: every flower picked counts twice. */
+export const BASKETS = [
+  { name: "Apron pocket", price: 0, per: 1 },
+  { name: "Wicker basket", price: 40, per: 2 },
 ] as const;
 
 /** what a new witch can draw; scrolls teach the rest */
@@ -77,9 +95,14 @@ export interface Save {
   /** gifts other witches left while you were away */
   mailbox?: Gift[];
   can: { level: number; water: number };
-  /** ink bottle and cauldron levels (BOTTLES, CAULDRONS) */
+  /** tool levels (BOTTLES, CAULDRONS, PENS, BOOTS, BASKETS) */
   bottle: number;
   cauldron: number;
+  pen: number;
+  boots: number;
+  basket: number;
+  /** hat shapes bought at the Outfitter (the one you wear is in your profile) */
+  hats: HatStyle[];
   /** objects taken off the island, ready to place again for free */
   shed: Record<string, number>;
   /** largest island size paid for; growing beyond it costs coins */
@@ -129,6 +152,10 @@ export function newGame(plots: number, stones: number): Save {
     can: { level: 0, water: CANS[0].holds },
     bottle: 0,
     cauldron: 0,
+    pen: 0,
+    boots: 0,
+    basket: 0,
+    hats: ["classic"],
     shed: {},
     land: 1,
     day: 1,
@@ -153,6 +180,10 @@ export function load(plots: number, stones: number): Save {
         // saves from before upgrades and editor costs keep everything they had
         s.bottle = Math.min(Math.max(s.bottle ?? 0, 0), BOTTLES.length - 1);
         s.cauldron = Math.min(Math.max(s.cauldron ?? 0, 0), CAULDRONS.length - 1);
+        s.pen ??= 0;
+        s.boots ??= 0;
+        s.basket ??= 0;
+        s.hats ??= ["classic"];
         s.shed ??= {};
         // saves from before scrolls drew every sigil already
         s.sigils ??= ["growth", "water", "wind", "light", "flame"];

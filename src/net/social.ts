@@ -1,5 +1,5 @@
 import { Camera, Mesh, Object3D, Scene, Vector3 } from "three";
-import { type AtlasEntry, type Deed, type Gift, HUB_ID, type IslandSnap, MARKET_ID, PHRASES, type Pose, type Profile } from "../../shared/protocol";
+import { type AtlasEntry, type Deed, type Gift, type HatStyle, HUB_ID, type IslandSnap, MARKET_ID, PHRASES, type Pose, type Profile } from "../../shared/protocol";
 import type { Action } from "../game/interact";
 import { ITEMS, isItem } from "../../shared/items";
 import { addMeal } from "../farm/livestock";
@@ -109,7 +109,7 @@ export class Social {
     if (this.peers.has(profile.id) || profile.id === this.me.id) return;
     const peer: Peer = { profile, witch: null, pose, tag: this.makeTag(profile.name, profile.color), bubbleUntil: 0 };
     this.peers.set(profile.id, peer);
-    void Witch.load(profile.color).then((w) => {
+    void Witch.load(profile.color, profile.hat).then((w) => {
       if (!this.peers.has(profile.id)) return;
       peer.witch = w;
       if (pose) w.position.set(pose.x, 0, pose.z);
@@ -329,8 +329,13 @@ export class Social {
     saveMe(this.me);
     this.myTag.querySelector(".name")!.lastChild!.textContent = this.me.name;
     (this.myTag.querySelector(".name i") as HTMLElement).style.background = this.me.color;
-    this.net.send({ t: "hello", profile: { id: this.me.id, name: this.me.name, color: this.me.color }, token: this.me.token });
+    this.net.send({ t: "hello", profile: { id: this.me.id, name: this.me.name, color: this.me.color, hat: this.me.hat }, token: this.me.token });
     this.publish(true);
+  }
+
+  /** Put on another hat shape: saved in your profile, seen by others the next time they meet you. */
+  wearHat(hat: HatStyle) {
+    this.updateMe({ hat });
   }
 
   private onAtlasClick(e: MouseEvent) {

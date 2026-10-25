@@ -5,7 +5,9 @@ export const HUB_ID = "commons";
 /** the Lantern Market: shared like the commons, with shops */
 export const MARKET_ID = "market";
 
-export interface Profile { id: string; name: string; color: string }
+export type HatStyle = "classic" | "wide" | "tall" | "crown";
+export const HAT_STYLES: HatStyle[] = ["classic", "wide", "tall", "crown"];
+export interface Profile { id: string; name: string; color: string; hat?: HatStyle }
 
 export interface PlotSnap { crop: string | null; growth: number; wet: number; locked?: boolean }
 export interface StoneSnap { spell: string; power: number; strokes: { x: number; y: number }[][] }

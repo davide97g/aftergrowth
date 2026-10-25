@@ -31,6 +31,7 @@ Every system and its numbers. Values live in code; the file is named next to eac
 - 6 of the 12 plots start open; the rest are overgrown. Clear one (F at the plot) for 20, 30, 45, 60,
   80, then 100c. Saves from before this keep all 12 open.
 - Watering can: **Tin** holds 6 pours, waters one plot. **Copper** (60c) holds 12, waters 3 in a row.
+  **Brass sprinkler** (180c + 4 brass) holds 20 and waters a 3×2 patch.
   Refill at the pond's edge, a wishing well or a rain barrel.
 - The market crate at home buys crops and honey at 80% and sells wheat, turnip and carrot seeds.
   Everything else is at the Lantern Market.
@@ -124,11 +125,11 @@ Every system and its numbers. Values live in code; the file is named next to eac
 | Shop | Keeper | Sells | Buys |
 |---|---|---|---|
 | Seed & Sprout | Fern | all six seeds, 8 tree saplings (go to your shed) | crops |
-| The Inkwell | Odile | ink (5c a drop), flowers (2c), Glass flask, Crystal decanter (+2 glass) | flowers (1c), ink (2c) |
+| The Inkwell | Odile | ink (5c a drop, never on sale), flowers (2c), Glass flask, Crystal decanter (+2 glass), Silver nib 90c, Gold nib 220c (+2 brass) | flowers (1c), ink (2c) |
 | Menagerie | Bramble | chicken 40c, duck 50c, sheep 90c, goat 110c (to your shed); feed crops at 2× | eggs, duck eggs, wool, milk, honey |
 | Timber & Stone | Rowan | wood 4c, stone 5c, glass 12c, brass 20c | wood, stone (2c) |
 | Scriptorium | Hazel | Wind 60c, Light 80c, Flame 120c (after light) scrolls; charm blanks 2c; rain, sprout, light, gust, bloom, rainbow charms 12–40c | every charm (60%) |
-| Outfitter | Tilly | Copper can, Copper and Moon (+3 brass) cauldrons | |
+| Outfitter | Tilly | Copper can 60c, Brass sprinkler 180c (+4 brass), Copper and Moon (+3 brass) cauldrons, Mossy boots 70c, Wicker basket 40c, hats: wide brim 30c, tall crooked 45c, flower crown 60c | |
 
 - **Daily prices:** a market day is a real UTC day, the same for everyone. Each item's price moves
   up to ±15% a day (↑/↓ against yesterday). Each shop has one special: a sale (0.6×) on something
@@ -142,6 +143,13 @@ Every system and its numbers. Values live in code; the file is named next to eac
   each for comparison. The 8 booths show the most recent sellers' names; F at one opens their stall.
 - Coins live in each player's save, so a determined cheat could fake them; the server only makes sure
   goods are never sold twice.
+- **Gear:** Silver nib: dots cost no ink. Gold nib: carving and inscribing cost 1.5× the ink instead
+  of 2×. Brass sprinkler: 20 pours, each waters 3 plots in a row and the row behind. Mossy boots:
+  walk and run 25% faster. Wicker basket: every flower picked counts twice.
+- **Hats** change the shape of your hat (the colour stays in the Atlas profile). Bought hats can be
+  worn or taken off at the Outfitter; other witches see your hat shape.
+- **Sound:** a soft crowd murmur with distant voices on the market, and a bell on the counter when
+  you talk to a keeper.
 - **Satchel (I):** everything you carry, by kind (harvest, goods, flowers, materials, seeds).
 
 ## Animals (`farm/animals.ts`, `farm/livestock.ts`)

@@ -1,6 +1,7 @@
-import { Euler, Group, Mesh, MeshToonMaterial, Object3D, Vector3 } from "three";
+import { Box3, Euler, Group, IcosahedronGeometry, Mesh, MeshToonMaterial, Object3D, Vector3 } from "three";
+import type { HatStyle } from "../../shared/protocol";
 import { loadGltf } from "../core/assets";
-import { applyPalette } from "../render/toon";
+import { applyPalette, toon } from "../render/toon";
 import type { WalkMask } from "../world/walkmask";
 
 const SCALE = 1.05;
@@ -33,6 +34,8 @@ export class Witch {
   private reaction: { kind: "cast" | "fizzle" | "gesture"; t: number } | null = null;
   /** kneeling with the pen out */
   drawing = false;
+  /** walking and running speed, ×1.25 with mossy boots */
+  speedUp = 1;
   /** resting in a chair */
   sitting = false;
   private sitBlend = 0;
@@ -53,8 +56,8 @@ export class Witch {
     }
   }
 
-  /** `hat` tints the hat cone and brim, so every player is recognisable. */
-  static async load(hat?: string): Promise<Witch> {
+  /** `hat` tints the hat cone and brim, so every player is recognisable; `style` is its shape. */
+  static async load(hat?: string, style: HatStyle = "classic"): Promise<Witch> {
     const gltf = await loadGltf("/assets/witch.glb");
     const model = gltf.scene.clone(true);
     model.scale.setScalar(SCALE);
@@ -69,7 +72,48 @@ export class Witch {
         m.material = tinted;
       });
     }
-    return new Witch(model);
+    const w = new Witch(model);
+    w.setHat(style);
+    return w;
+  }
+
+  private crown: Object3D | null = null;
+  private hatScale: Vector3 | null = null;
+
+  /** Reshape the hat: wider, taller, or swapped for a flower crown. */
+  setHat(style: HatStyle) {
+    const hat = this.parts.Hat;
+    this.hatScale ??= hat.scale.clone();
+    const k = style === "wide" ? [1.32, 0.82, 1.32] : style === "tall" ? [0.94, 1.45, 0.94] : [1, 1, 1];
+    hat.scale.set(this.hatScale.x * k[0], this.hatScale.y * k[1], this.hatScale.z * k[2]);
+    hat.visible = style !== "crown";
+    if (style === "crown" && !this.crown) {
+      // a ring of little flowers where the hat's brim sits on the head
+      const box = new Box3().setFromObject(hat);
+      const size = box.getSize(new Vector3());
+      const crown = new Group();
+      const leaf = toon("cape");
+      // not the flower-* tokens: those sway in the wind, which would tear them off the head
+      const colors = ["blush", "honey", "cream", "bunny-pink"] as const;
+      const geo = new IcosahedronGeometry(1, 0);
+      const r = size.x * 0.24;
+      for (let i = 0; i < 9; i++) {
+        const a = (i / 9) * Math.PI * 2;
+        const bloom = new Mesh(geo, i % 2 ? leaf : toon(colors[(i / 2) % 4 | 0]));
+        bloom.scale.setScalar(r * (i % 2 ? 0.24 : 0.34));
+        bloom.position.set(Math.cos(a) * r, 0, Math.sin(a) * r);
+        crown.add(bloom);
+      }
+      const head = this.parts.Head;
+      head.updateWorldMatrix(true, false);
+      const base = head.worldToLocal(new Vector3((box.min.x + box.max.x) / 2, box.min.y + size.y * 0.04, (box.min.z + box.max.z) / 2));
+      crown.position.copy(base);
+      // sizes above are in world units; the head is scaled
+      crown.scale.setScalar(1 / head.getWorldScale(new Vector3()).x);
+      head.add(crown);
+      this.crown = crown;
+    }
+    if (this.crown) this.crown.visible = style === "crown";
   }
 
   /** Remote players: glide towards the last pose the server sent and animate at its speed. */
@@ -101,7 +145,7 @@ export class Witch {
   /** `wish` is the desired world-space direction, length 0..1. */
   update(dt: number, wish: Vector3, running: boolean, mask: WalkMask) {
     this.time += dt;
-    const target = wish.clone().multiplyScalar(running ? RUN : WALK);
+    const target = wish.clone().multiplyScalar((running ? RUN : WALK) * this.speedUp);
     this.velocity.lerp(target, 1 - Math.exp(-dt * (wish.lengthSq() > 0 ? 10 : 14)));
 
     const step = this.velocity.clone().multiplyScalar(dt);

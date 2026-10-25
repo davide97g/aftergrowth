@@ -3,7 +3,8 @@ import { marketDay, msToNextDay } from "../../shared/prices";
 import { type Save, count, give, inkMax, take } from "../game/state";
 import { costLabel } from "../island/costs";
 import type { Sigil } from "../magic/recognizer";
-import { type Offer, SCROLLS, type Shop, buyPrice, gear, offerKey, offerName, sellPrice, todaysSpecial, trend } from "./shops";
+import type { HatStyle } from "../../shared/protocol";
+import { HATS, type Offer, SCROLLS, type Shop, buyPrice, gear, offerKey, offerName, sellPrice, todaysSpecial, trend } from "./shops";
 
 const ARROW = { [-1]: `<i class="down" title="Cheaper than yesterday">↓</i>`, 0: "", 1: `<i class="up" title="Dearer than yesterday">↑</i>` };
 
@@ -12,6 +13,9 @@ export class ShopPanel {
   private panel = document.getElementById("market")!;
   private shop: Shop | null = null;
   private tab: "buy" | "sell" = "buy";
+  /** the hat shape you wear, and putting one on */
+  wearing: () => HatStyle = () => "classic";
+  onWear: (h: HatStyle) => void = () => {};
   /** a scroll was bought: teach its sigil */
   onLearn: (s: Sigil) => void = () => {};
 
@@ -60,8 +64,13 @@ export class ShopPanel {
       else if ("ink" in o) s.ink += n;
       else if ("shed" in o) s.shed[o.shed] = (s.shed[o.shed] ?? 0) + n;
       else if ("scroll" in o) this.onLearn(o.scroll);
-      else gear(s, o.gear).buy();
-      this.onChange("gear" in o ? `${gear(s, o.gear).now}!` : "shed" in o ? `${offerName(o)} · in your shed` : "scroll" in o ? `Learned ${o.scroll}!` : `+${n} ${offerName(o).toLowerCase()}`);
+      else if ("hat" in o) {
+        s.hats.push(o.hat);
+        this.onWear(o.hat);
+      } else gear(s, o.gear).buy();
+      this.onChange("gear" in o ? `${gear(s, o.gear).now}!` : "hat" in o ? `${offerName(o)}!` : "shed" in o ? `${offerName(o)} · in your shed` : "scroll" in o ? `Learned ${o.scroll}!` : `+${n} ${offerName(o).toLowerCase()}`);
+    } else if (d.act === "wear") {
+      this.onWear(d.hat as HatStyle);
     } else if (d.act === "sell") {
       const id = d.id as ItemId | "ink";
       const have = id === "ink" ? s.ink : count(s, id);
@@ -115,6 +124,16 @@ export class ShopPanel {
         scrolls.push(known
           ? `<p class="upgrade"><span>You know <strong>${o.scroll}</strong>.</span></p>`
           : `<p class="upgrade"><span><strong>${offerName(o)}</strong> teaches ${sc.blurb}${blocked ? ` <em>Learn ${sc.needs} first.</em>` : ""}</span><button data-act="buy" data-i="${i}" data-n="1" ${!blocked && s.coins >= price! ? "" : "disabled"}>Study · ${price}c</button></p>`);
+        return;
+      }
+      if ("hat" in o) {
+        const h = HATS[o.hat];
+        const wearing = this.wearing() === o.hat;
+        const owned = s.hats.includes(o.hat);
+        const btn = !owned
+          ? `<button data-act="buy" data-i="${i}" data-n="1" ${s.coins >= price! ? "" : "disabled"}>Buy · ${price}c</button>`
+          : `<button data-act="wear" data-hat="${wearing ? "classic" : o.hat}">${wearing ? "Take off" : "Wear"}</button>`;
+        cards.push(`<p class="upgrade"><span><strong>${h.name}</strong> ${h.blurb}</span>${btn}</p>`);
         return;
       }
       if ("gear" in o) {

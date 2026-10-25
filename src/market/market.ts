@@ -1,4 +1,5 @@
 import { Scene, Vector3 } from "three";
+import { sound } from "../audio/sound";
 import type { Action } from "../game/interact";
 import { Witch } from "../player/witch";
 import type { IslandWorld } from "../world/world";
@@ -54,6 +55,7 @@ export class Market {
       pos: s.counter, reach: 2, label: `${s.shop.keeper!.name} · ${s.shop.name}`, priority: 1,
       act: () => {
         s.keeper.react("gesture");
+        sound.bell();
         this.panel.open(s.shop);
       },
     };

@@ -177,6 +177,16 @@ multiplayer (live and async); magic drawn with rules, like *Witch Hat Atelier*.
   island now); deeds created in the same millisecond could be skipped (each gets its own time now);
   and old hub instances kept a timer running after Vite restarted the server.
 
+## 16. Gear, hats and market sounds (market phase 6)
+
+- Tools are one table now (`TOOLS` in `market/shops.ts`): can, bottle, cauldron, pen, boots, basket,
+  each with levels in the save. New: silver and gold nibs, mossy boots, wicker basket, brass sprinkler.
+- Hat shapes (wide brim, tall crooked, flower crown) live in the profile, so other witches see them.
+  The crown uses non-swaying colour tokens: the wind shader would have bent it off the head.
+- Market sounds: a crowd murmur with distant voices, and a counter bell.
+- Balance: ink never goes on sale. A test checks that charms made from bought ink earn at most a few
+  coins over the shop price, except on days the Scriptorium wants that charm.
+
 ## How things were checked
 
 Every step was checked in a headless browser (screenshots, scripted clicks, keyboard and mouse

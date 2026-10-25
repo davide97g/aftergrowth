@@ -19,10 +19,10 @@ const S = Math.SQRT1_2;
 const RIGHT = new Vector3(S, 0, -S);
 const UP = new Vector3(-S, 0, -S);
 
-/** Ink drops a reading costs: one per sigil, one per strengthening dot; a smudge spills one. */
-export function inkCost(r: Reading): number {
+/** Ink drops a reading costs: one per sigil, one per strengthening dot (free with a silver nib); a smudge spills one. */
+export function inkCost(r: Reading, pen = 0): number {
   if (r.kind === "fizzle") return 1;
-  return r.sigils.length + (r.power - 1);
+  return r.sigils.length + (pen >= 1 ? 0 : r.power - 1);
 }
 
 /** Pen, ink and grimoire: turns drawings on the screen into spells on the island. */
@@ -149,11 +149,12 @@ export class Magic {
     }
     const carving = stone >= 0 && r.kind === "spell";
     const charm = !carving && r.kind === "spell" && !!at && at.distanceTo(this.world.spots.cauldron) < 1.4 && count(this.state, "charm_blank") > 0;
-    const cost = inkCost(r) * (carving || charm ? 2 : 1);
+    // carving and inscribing cost double, or half again with a gold nib
+    const cost = Math.ceil(inkCost(r, this.state.pen) * (carving || charm ? (this.state.pen >= 2 ? 1.5 : 2) : 1));
 
     if (r.kind === "spell" && this.state.ink < cost) {
       this.finish(true);
-      this.hud.toast("The pen runs dry", `This glyph needs ${cost} drops of ink, you have ${this.state.ink}.${carving ? " Carving costs double." : charm ? " Inscribing costs double." : ""}`);
+      this.hud.toast("The pen runs dry", `This glyph needs ${cost} drops of ink, you have ${this.state.ink}.${carving ? " Carving costs extra." : charm ? " Inscribing costs extra." : ""}`);
       return;
     }
     this.state.ink = Math.max(0, this.state.ink - cost);
