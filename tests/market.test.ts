@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { ITEM_IDS, type ItemId } from "../shared/items.ts";
+import { ITEM_IDS, type ItemId, stallBounds } from "../shared/items.ts";
 import { SWING, marketDay, special, swing } from "../shared/prices.ts";
 import { fromLegacy, newGame } from "../src/game/state.ts";
 import { KINDS, MARKET_SHOPS, coast, marketLayout } from "../src/island/layout.ts";
@@ -68,4 +68,12 @@ test("new witches know two sigils and buy the rest as scrolls", () => {
   save.sigils.push("wind");
   assert.equal(buyPrice(scriptorium, wind, save, 1), null, "already known");
   assert.equal(SCROLLS.flame!.needs, "light");
+});
+
+test("stall prices are bounded around each item's base price", () => {
+  for (const id of ITEM_IDS) {
+    const b = stallBounds(id);
+    assert.ok(b.min >= 1 && b.min <= b.max, id);
+  }
+  assert.deepEqual(stallBounds("egg"), { min: 3, max: 27 });
 });

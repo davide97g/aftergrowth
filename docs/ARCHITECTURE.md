@@ -86,12 +86,20 @@ shore, channel to the nearest edge, waterfall, lilies, stones).
 One WebSocket on `/net`, JSON messages.
 
 - Client → server: `hello` (profile + secret token), `enter` (island room), `pose` (10 Hz),
-  `publish` (your island snapshot), `atlas`, `water`, `gift`, `say`, `spell`, `ack`.
+  `publish` (your island snapshot), `atlas`, `water`, `gift`, `feed`, `say`, `spell`, `ack`, and for
+  stalls `listings`, `list`, `unlist`, `buy`.
 - Server → client: `welcome` (deeds waiting for you), `atlas`, `island` (a snapshot), `peers`,
-  `joined`, `left`, `pose`, `deed`, `say`, `spell`.
+  `joined`, `left`, `pose`, `deed`, `say`, `spell`, and for stalls `listings`, `listed`, `bought`.
 - The server keeps one snapshot per island (name, colour, theme, plots, stones, layout) and the deeds
-  done there while the owner was away. Deeds stay until the owner sends `ack`. Data in
-  `data/world.json`. The token proves an id belongs to this browser; there are no accounts.
+  done there while the owner was away (water, gift, feed, and the stall's sale and return). Deeds
+  stay until the owner sends `ack`; each gets its own increasing time, since owners skip anything not
+  newer than what they last applied. Data in `data/world.json`. The token proves an id belongs to this
+  browser; there are no accounts.
+- **Stalls:** the server holds the listings (`store.listings`) and so the goods. `buy` shrinks the
+  listing before anyone is answered, so two buyers never get the same goods; the buyer's coins are
+  set aside on their side until `bought` arrives (and come back if it failed). Prices are checked
+  against `stallBounds`; listings expire after three days (a timer, stopped when the dev server
+  restarts the hub).
 - In development the hub runs inside Vite (`vite.config.ts`); in production `server/index.ts` serves
   `dist/` and the hub on one port.
 

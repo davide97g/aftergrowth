@@ -165,6 +165,18 @@ multiplayer (live and async); magic drawn with rules, like *Witch Hat Atelier*.
 - Shops now sell crops (as feed) at twice what they pay, and nothing players grow ever goes on sale,
   so no special can be played against another shop's. The price test checks across all shops.
 
+## 15. Player stalls (market phase 5)
+
+- The server holds listings and the goods on them; buying shrinks a listing before anyone is told.
+  Sellers are paid with a `sale` deed, returns come back as `return` deeds.
+- The notice board lists every stall with filters and a shop-price comparison; the eight booths
+  carry the latest sellers' names.
+- Found and fixed while testing with two browser sessions: live deeds went to the first socket of a
+  player, which after a reload could be a dead one (now every socket gets it); deeds arriving on the
+  commons or the market were held back as if you were visiting someone (only on another witch's
+  island now); deeds created in the same millisecond could be skipped (each gets its own time now);
+  and old hub instances kept a timer running after Vite restarted the server.
+
 ## How things were checked
 
 Every step was checked in a headless browser (screenshots, scripted clicks, keyboard and mouse

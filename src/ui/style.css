@@ -332,7 +332,7 @@ body.drawing #inventory { display: none; }
 #pop.show { animation: pop-up 1.4s ease-out forwards; }
 @keyframes pop-up { from { opacity: 0; transform: translateY(8px); } 15% { opacity: 1; } 75% { opacity: 1; } to { opacity: 0; transform: translateY(-18px); } }
 
-#market {
+#market, #stalls {
   position: absolute;
   top: 50%;
   left: 50%;
@@ -346,17 +346,17 @@ body.drawing #inventory { display: none; }
   padding: 16px 18px 18px;
   box-shadow: 0 10px 30px #2a223040;
 }
-#market header { display: flex; justify-content: space-between; align-items: center; }
-#market h2 { margin: 0; font: 1.7rem/1 var(--f-display); }
-#market-close { font: 1.6rem/1 var(--f-display); background: none; border: none; color: var(--ink); cursor: pointer; padding: 4px 8px; }
-#market .coins { margin: 8px 0 10px; font: 600 1.05rem var(--f-body); }
-#market .table-wrap { overflow-x: auto; }
-#market table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
-#market th, #market td { text-align: left; padding: 8px 6px; border-top: 1px solid #2a223026; vertical-align: middle; }
-#market thead th { border-top: none; font: italic 0.95rem var(--f-display); }
-#market tbody th { font: 1.1rem/1.1 var(--f-display); }
-#market tbody th small { display: block; font: italic 0.8rem var(--f-body); opacity: 0.75; }
-#market td button {
+#market header, #stalls header { display: flex; justify-content: space-between; align-items: center; }
+#market h2, #stalls h2 { margin: 0; font: 1.7rem/1 var(--f-display); }
+#market-close, #stalls-close { font: 1.6rem/1 var(--f-display); background: none; border: none; color: var(--ink); cursor: pointer; padding: 4px 8px; }
+#market .coins, #stalls .coins { margin: 8px 0 10px; font: 600 1.05rem var(--f-body); }
+#market .table-wrap, #stalls .table-wrap { overflow-x: auto; }
+#market table, #stalls table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+#market th, #stalls th, #market td, #stalls td { text-align: left; padding: 8px 6px; border-top: 1px solid #2a223026; vertical-align: middle; }
+#market thead th, #stalls thead th { border-top: none; font: italic 0.95rem var(--f-display); }
+#market tbody th, #stalls tbody th { font: 1.1rem/1.1 var(--f-display); }
+#market tbody th small, #stalls tbody th small { display: block; font: italic 0.8rem var(--f-body); opacity: 0.75; }
+#market td button, #stalls td button {
   font: 600 0.85rem/1 var(--f-body);
   color: var(--parchment);
   background: var(--ink);
@@ -366,8 +366,8 @@ body.drawing #inventory { display: none; }
   margin-left: 6px;
   cursor: pointer;
 }
-#market td button:disabled { opacity: 0.35; cursor: default; }
-#market .note { margin: 10px 0 0; font: italic 0.9rem var(--f-body); opacity: 0.8; }
+#market td button:disabled, #stalls td button:disabled { opacity: 0.35; cursor: default; }
+#market .note, #stalls .note { margin: 10px 0 0; font: italic 0.9rem var(--f-body); opacity: 0.8; }
 
 @media (max-width: 720px) {
   #inventory { max-width: calc(100vw - 32px); bottom: calc(70px + env(safe-area-inset-bottom, 0px)); }
@@ -470,7 +470,7 @@ body.drawing .say-wrap { display: none; }
 #atlas header { display: flex; justify-content: space-between; align-items: center; }
 #atlas h2 { margin: 0; font: 1.8rem/1 var(--f-display); }
 #atlas h3 { margin: 18px 0 8px; font: italic 1.15rem/1.1 var(--f-display); border-bottom: 1px solid #2a223033; padding-bottom: 4px; }
-#market h3 { margin: 16px 0 0; font: italic 1.15rem/1.1 var(--f-display); border-bottom: 1px solid #2a223033; padding-bottom: 4px; }
+#market h3, #stalls h3 { margin: 16px 0 0; font: italic 1.15rem/1.1 var(--f-display); border-bottom: 1px solid #2a223033; padding-bottom: 4px; }
 #atlas-close { font: 1.6rem/1 var(--f-display); background: none; border: none; color: var(--ink); cursor: pointer; padding: 4px 8px; }
 #atlas .islands { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
 #atlas .islands li { display: flex; align-items: center; gap: 10px; }
@@ -518,11 +518,11 @@ body.drawing .say-wrap { display: none; }
 #atlas button:focus-visible, #atlas input:focus-visible, #btn-say:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 
 /* panels sit above the action buttons and the inventory */
-#atlas, #market, #grimoire, #satchel { z-index: 5; }
-#market .upgrade { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 8px 0 0; padding: 10px 12px; background: #fffaf0; border: 1px solid #2a223033; border-radius: 12px; }
-#market .upgrade strong { font: 1.05rem var(--f-display); }
-#market .upgrade button { font: 600 0.85rem/1 var(--f-body); color: var(--parchment); background: var(--ink); border: none; border-radius: 999px; padding: 7px 12px; cursor: pointer; white-space: nowrap; }
-#market .upgrade button:disabled { opacity: 0.35; cursor: default; }
+#atlas, #market, #stalls, #grimoire, #satchel { z-index: 5; }
+#market .upgrade, #stalls .upgrade { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 8px 0 0; padding: 10px 12px; background: #fffaf0; border: 1px solid #2a223033; border-radius: 12px; }
+#market .upgrade strong, #stalls .upgrade strong { font: 1.05rem var(--f-display); }
+#market .upgrade button, #stalls .upgrade button { font: 600 0.85rem/1 var(--f-body); color: var(--parchment); background: var(--ink); border: none; border-radius: 999px; padding: 7px 12px; cursor: pointer; white-space: nowrap; }
+#market .upgrade button:disabled, #stalls .upgrade button:disabled { opacity: 0.35; cursor: default; }
 
 #fade { position: fixed; inset: 0; background: #2b2233; opacity: 0; pointer-events: none; transition: opacity 0.35s ease; }
 #fade.on { opacity: 1; }
@@ -593,16 +593,30 @@ body.editing #inventory, body.editing #hint, body.editing #prompt, body.editing 
 #satchel .items b { font-variant-numeric: tabular-nums; }
 #satchel .note { margin: 14px 0 0; font: italic 0.9rem var(--f-body); opacity: 0.8; }
 
-#market .keeper { display: flex; gap: 10px; align-items: flex-start; margin: 10px 0 0; font: italic 1rem/1.35 var(--f-body); }
-#market .keeper b { font-style: normal; }
-#market .keeper .hat { flex: none; width: 22px; height: 22px; margin-top: 1px; clip-path: polygon(50% 0, 100% 100%, 0 100%); border-bottom: 3px solid var(--ink); }
-#market .special { margin: 8px 0 0; padding: 6px 10px; background: #ffe9b0; border: 1px solid #c99a3e; border-radius: 10px; font: 0.92rem var(--f-body); }
-#market .coins small { font-weight: 400; font-style: italic; opacity: 0.75; }
-#market .tabs { display: flex; gap: 4px; border-bottom: 1px solid #2a223033; margin-bottom: 4px; }
-#market .tabs button { font: 1.05rem var(--f-display); color: var(--ink); background: none; border: none; border-bottom: 2.5px solid transparent; padding: 6px 12px; cursor: pointer; }
-#market .tabs button[aria-selected="true"] { border-bottom-color: var(--ink); }
-#market tr.hot { background: #fff3d6; }
-#market td.price { white-space: nowrap; }
-#market td.price i { font-style: normal; font-weight: 700; }
+#market .keeper, #stalls .keeper { display: flex; gap: 10px; align-items: flex-start; margin: 10px 0 0; font: italic 1rem/1.35 var(--f-body); }
+#market .keeper b, #stalls .keeper b { font-style: normal; }
+#market .keeper .hat, #stalls .keeper .hat { flex: none; width: 22px; height: 22px; margin-top: 1px; clip-path: polygon(50% 0, 100% 100%, 0 100%); border-bottom: 3px solid var(--ink); }
+#market .special, #stalls .special { margin: 8px 0 0; padding: 6px 10px; background: #ffe9b0; border: 1px solid #c99a3e; border-radius: 10px; font: 0.92rem var(--f-body); }
+#market .coins small, #stalls .coins small { font-weight: 400; font-style: italic; opacity: 0.75; }
+#market .tabs, #stalls .tabs { display: flex; gap: 4px; border-bottom: 1px solid #2a223033; margin-bottom: 4px; }
+#market .tabs button, #stalls .tabs button { font: 1.05rem var(--f-display); color: var(--ink); background: none; border: none; border-bottom: 2.5px solid transparent; padding: 6px 12px; cursor: pointer; }
+#market .tabs button[aria-selected="true"], #stalls .tabs button[aria-selected="true"] { border-bottom-color: var(--ink); }
+#market tr.hot, #stalls tr.hot { background: #fff3d6; }
+#market td.price, #stalls td.price { white-space: nowrap; }
+#market td.price i, #stalls td.price i { font-style: normal; font-weight: 700; }
 #satchel .items button { margin-left: 6px; font: 600 0.8rem/1 var(--f-body); color: var(--parchment); background: var(--ink); border: none; border-radius: 999px; padding: 5px 9px; cursor: pointer; }
 #satchel .items button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+#stalls tbody th small i { display: inline-block; width: 9px; height: 9px; margin-right: 5px; border-radius: 50%; border: 1px solid var(--ink); vertical-align: -1px; }
+#stalls td.price small { display: block; font: italic 0.78rem var(--f-body); opacity: 0.7; }
+#stalls td small { font: italic 0.85rem var(--f-body); opacity: 0.7; }
+#stalls .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 4px; }
+#stalls .chips button { font: 0.85rem var(--f-body); color: var(--ink); background: #fffaf0; border: 1.5px solid #2a223055; border-radius: 999px; padding: 4px 10px; cursor: pointer; }
+#stalls .chips button[aria-pressed="true"] { background: var(--ink); color: var(--parchment); border-color: var(--ink); }
+#stalls .list-form { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 10px; margin-top: 14px; padding: 12px; background: #fffaf0; border: 1px solid #2a223033; border-radius: 12px; }
+#stalls .list-form label { display: grid; gap: 4px; font: italic 0.88rem var(--f-body); }
+#stalls .list-form label:first-child { grid-column: 1 / -1; }
+#stalls .list-form select, #stalls .list-form input { font: 1rem var(--f-body); color: var(--ink); background: var(--parchment-soft); border: 1.5px solid var(--ink); border-radius: 8px; padding: 6px 8px; }
+#stalls .list-form .primary { grid-column: 1 / -1; font: 600 0.95rem var(--f-body); color: var(--parchment); background: var(--ink); border: none; border-radius: 999px; padding: 9px 14px; cursor: pointer; }
+#stalls button:focus-visible, #stalls select:focus-visible, #stalls input:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.nametag.booth .name b { font-weight: 600; }

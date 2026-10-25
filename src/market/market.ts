@@ -14,10 +14,10 @@ interface Stand { shop: Shop; keeper: Witch; spot: Vector3; yaw: number; counter
 export class Market {
   private stands: Stand[] = [];
 
-  private constructor(private world: IslandWorld, private panel: ShopPanel) {}
+  private constructor(private panel: ShopPanel) {}
 
   static async create(scene: Scene, world: IslandWorld, panel: ShopPanel) {
-    const m = new Market(world, panel);
+    const m = new Market(panel);
     for (const shop of SHOPS) {
       const placed = world.layout.objects.find((o) => o.kind === shop.building);
       const mesh = placed && world.objects.get(placed.id);
@@ -43,17 +43,6 @@ export class Market {
       s.keeper.follow(dt, { x: s.spot.x, z: s.spot.z, yaw, speed: 0, drawing: false });
     }
   }
-
-  /** Interaction provider: the notice board and the stalls, which open in a later update. */
-  board = (near: Vector3): Action | null => {
-    for (const o of this.world.layout.objects) {
-      if (o.kind !== "notice_board" && o.kind !== "stall_booth") continue;
-      const pos = new Vector3(o.x, 0, o.z);
-      if (pos.distanceTo(near) > 1.6) continue;
-      return { pos, reach: 1.6, label: o.kind === "notice_board" ? "Notice board · “Stalls for rent soon. Sell your own goods!”" : "An empty stall · soon you can rent it", act: null };
-    }
-    return null;
-  };
 
   /** Interaction provider: talk to the keeper at the nearest counter. */
   action = (near: Vector3): Action | null => {

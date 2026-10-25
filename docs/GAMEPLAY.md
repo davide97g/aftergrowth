@@ -133,7 +133,15 @@ Every system and its numbers. Values live in code; the file is named next to eac
 - **Daily prices:** a market day is a real UTC day, the same for everyone. Each item's price moves
   up to ±15% a day (↑/↓ against yesterday). Each shop has one special: a sale (0.6×) on something
   it sells, or a wanted item it pays 1.5× for.
-- The stall row and notice board are there but open in a later update (player stalls).
+- **Player stalls** (`market/stalls.ts`): F at an empty booth sets up your stall: up to 4 listings,
+  1–20 of one item each, at 40%–300% of its base price (the suggested price is today's shop price).
+  Listed goods leave your satchel and are held by the server. You're paid by a `sale` deed, on the
+  spot if you're online (anywhere but someone else's island), otherwise when you next come home.
+  Take a listing down, or leave it 3 days, and the goods come back (`return` deed).
+- The **notice board** lists every stall's goods, with filters by kind and today's shop price next to
+  each for comparison. The 8 booths show the most recent sellers' names; F at one opens their stall.
+- Coins live in each player's save, so a determined cheat could fake them; the server only makes sure
+  goods are never sold twice.
 - **Satchel (I):** everything you carry, by kind (harvest, goods, flowers, materials, seeds).
 
 ## Animals (`farm/animals.ts`, `farm/livestock.ts`)

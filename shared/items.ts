@@ -85,3 +85,12 @@ export const isItem = (id: unknown): id is ItemId => typeof id === "string" && i
 
 /** What one drop of ink costs at a shop, and what a shop gives for one. */
 export const INK_PRICE = { price: 5, pays: 2 };
+
+/** Player stalls: four listings each, up to 20 of one item, for three real days. */
+export const STALL = { slots: 4, maxQty: 20, days: 3 };
+
+/** The unit prices a stall may ask: 40% to 300% of the item's base price. */
+export function stallBounds(id: ItemId) {
+  const p = ITEMS[id].price;
+  return { min: Math.max(1, Math.floor(p * 0.4)), max: Math.ceil(p * 3) };
+}

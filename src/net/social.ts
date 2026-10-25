@@ -1,6 +1,7 @@
 import { Camera, Mesh, Object3D, Scene, Vector3 } from "three";
 import { type AtlasEntry, type Deed, type Gift, HUB_ID, type IslandSnap, MARKET_ID, PHRASES, type Pose, type Profile } from "../../shared/protocol";
 import type { Action } from "../game/interact";
+import { ITEMS, isItem } from "../../shared/items";
 import { addMeal } from "../farm/livestock";
 import { CROPS, CROP_IDS, type CropId, FLOWER_COLORS, type FlowerColor, type ItemId, type Save, count, give, take } from "../game/state";
 import type { Hud } from "../ui/hud";
@@ -169,13 +170,16 @@ export class Social {
   }
 
   private seenDeeds = 0;
+  /** after deeds changed the save (coins from a sale, goods back from a stall) */
+  onDeeds: () => void = () => {};
 
   private applyDeeds(all: Deed[], live: boolean) {
     // the server repeats deeds until we acknowledge them; apply each one once
     const deeds = all.filter((d) => d.at > this.seenDeeds);
     if (!deeds.length) return;
-    if (live && this.visiting) {
-      // someone else watered the island we're visiting
+    if (live && this.host) {
+      // on someone's island, live deeds are about theirs (someone else watered it); ours wait until we're
+      // home. On the commons and the market they are ours: a stall sale is paid on the spot.
       for (const d of deeds) if (d.kind === "water" && this.host?.plots[d.plot]) this.host.plots[d.plot].wet = 10;
       return;
     }
@@ -186,6 +190,7 @@ export class Social {
     let plots = 0;
     const gifts: string[] = [];
     const fed = new Set<string>();
+    const sales: string[] = [];
     for (const d of deeds) {
       if (d.kind === "water") {
         if (this.state.plots[d.plot]) this.state.plots[d.plot].wet = 10;
@@ -194,6 +199,14 @@ export class Social {
       } else if (d.kind === "feed") {
         if (d.crop in CROPS) addMeal(this.state.herd, d.trough, d.crop as CropId);
         fed.add(d.by);
+      } else if (d.kind === "sale") {
+        this.state.coins += d.coins;
+        if (isItem(d.item)) sales.push(`${d.by} bought ${d.qty} ${ITEMS[d.item].name.toLowerCase()} (+${d.coins}c)`);
+      } else if (d.kind === "return") {
+        if (isItem(d.item)) {
+          give(this.state, d.item, d.qty);
+          sales.push(`${d.qty} ${ITEMS[d.item].name.toLowerCase()} back from your stall`);
+        }
       } else {
         (this.state.mailbox ??= []).push(d.gift);
         gifts.push(d.by);
@@ -202,8 +215,10 @@ export class Social {
     const parts: string[] = [];
     if (plots) parts.push(`${[...watered].join(", ")} watered ${plots} ${plots === 1 ? "crop" : "crops"}`);
     if (fed.size) parts.push(`${[...fed].join(", ")} fed your animals`);
+    parts.push(...sales);
     if (gifts.length) parts.push(`${gifts.length} ${gifts.length === 1 ? "gift" : "gifts"} in the mailbox from ${[...new Set(gifts)].join(", ")}`);
-    this.hud.toast(live ? "A visitor helped" : "While you were away", parts.join(" · "));
+    this.hud.toast(live ? (sales.length && !plots && !gifts.length && !fed.size ? "Your stall" : "A visitor helped") : "While you were away", parts.join(" · "));
+    this.onDeeds();
   }
 
   // ---------- mailbox ----------

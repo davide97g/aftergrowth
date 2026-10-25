@@ -12,6 +12,7 @@ import { Workshop } from "../farm/workshop";
 import { Market } from "../market/market";
 import { ShopPanel } from "../market/panel";
 import { CRATE } from "../market/shops";
+import { Stalls } from "../market/stalls";
 import { PortalOverlay } from "../fx/portal";
 import { Tweens } from "../fx/tween";
 import { Magic } from "../magic/magic";
@@ -123,11 +124,13 @@ export async function startGame() {
   hud.onInventory = () => {
     satchel.render();
     shops.render();
+    stalls?.render();
   };
   shops.onLearn = (s) => magic.learnSigil(s);
   satchel.onUse = (spell) => magic.useCharm(spell);
   const workshop = new Workshop(scene, world.spots, state, changed, world.pond, () => shops.open(CRATE));
   const bazaar = market ? await Market.create(scene, world, shops) : null;
+  const stalls = market ? new Stalls(net, me, state, world, rig.camera, hud, changed) : null;
   const magic = await Magic.create(scene, world, life, witch, rig.camera, hud, state, {
     water: (at, radius) => farm.water(at, radius),
     grow: (at, radius, hours) => farm.grow(at, radius, hours),
@@ -135,6 +138,7 @@ export async function startGame() {
   }, everyone ? [] : stones, mine);
   magic.onCast = (spell, at, power) => social.castSpell(spell, at, power);
   magic.onInventory = () => hud.inventory(state);
+  social.onDeeds = () => hud.inventory(state);
   social.onRemoteSpell = (spell, at, power) => magic.remoteCast(spell, at, power);
   social.useMailbox(world.mailbox, world.spots.mailbox);
   const weather = new Weather(scene, seedOf(islandId));
@@ -197,7 +201,7 @@ export async function startGame() {
   // ---------- what F does outside ----------
   const outdoors = new Interactions(rig.camera);
   for (const p of [rest.action, garden.fill, garden.seat, garden.hive, garden.sign, cottage.door, workshop.cauldron, workshop.market,
-    workshop.pondside, ...(bazaar ? [bazaar.action, bazaar.board] : []), magic.contraptions.action, farm.action, flowers.action, gather.action, animals.action, animals.trough, social.mailbox, social.portal(world.portalPos)]) outdoors.add(p);
+    workshop.pondside, ...(bazaar && stalls ? [bazaar.action, stalls.action] : []), magic.contraptions.action, farm.action, flowers.action, gather.action, animals.action, animals.trough, social.mailbox, social.portal(world.portalPos)]) outdoors.add(p);
   outdoors.onAct = () => witch.react("gesture");
   input.onPick = (p) => (cottage.inside ? cottage.indoors : outdoors).clicked(p);
 
@@ -241,7 +245,7 @@ export async function startGame() {
     stage.applyMood(mood, clock.hour, weather.raining, weather.overcast);
 
     // the witch
-    const busy = magic.drawing || shops.isOpen || !atlas.hidden || editor.active || travel.active;
+    const busy = magic.drawing || shops.isOpen || !!stalls?.isOpen || !atlas.hidden || editor.active || travel.active;
     if (editor.active) editor.focus.addScaledVector(input.wish(editor.focus), dt * 14);
     input.enabled = !editor.active;
     const wish = rest.update(busy ? new Vector3() : input.wish(witch.position), null);
@@ -263,6 +267,7 @@ export async function startGame() {
     flowers.update(hours);
     workshop.update(dt);
     bazaar?.update(dt, witch.position);
+    stalls?.update();
     social.update(dt, witch, cottage.inside ? world.door : null);
     cottage.update(dt, mood);
     birds.update(dt, witch.position, mood.glow > 0.6, weather.raining > 0.5);

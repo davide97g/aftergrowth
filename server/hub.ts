@@ -2,8 +2,8 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import type { Server } from "node:http";
 import { dirname } from "node:path";
 import { type WebSocket, WebSocketServer } from "ws";
-import type { AtlasEntry, ClientMsg, Deed, IslandSnap, Pose, Profile, ServerMsg } from "../shared/protocol.ts";
-import { CROPS } from "../shared/items.ts";
+import type { AtlasEntry, ClientMsg, Deed, IslandSnap, Listing, Pose, Profile, ServerMsg } from "../shared/protocol.ts";
+import { CROPS, STALL, isItem, stallBounds } from "../shared/items.ts";
 import { HUB_ID, MARKET_ID, PHRASES } from "../shared/protocol.ts";
 import { defaultHome, sanitizeLayout } from "../src/island/layout.ts";
 
@@ -15,7 +15,7 @@ const seedOf = (id: string) => {
 
 interface Client { ws: WebSocket; profile: Profile | null; island: string | null; pose: Pose | null }
 interface Stored { snap: IslandSnap; lastSeen: number; deeds: Deed[] }
-interface Store { islands: Record<string, Stored>; tokens: Record<string, string> }
+interface Store { islands: Record<string, Stored>; tokens: Record<string, string>; listings?: Listing[] }
 
 const THEMES = new Set(["meadow", "blossom", "autumn", "mint"]);
 const clean = (s: unknown, max: number) => String(s ?? "").replace(/[<>]/g, "").trim().slice(0, max);
@@ -61,12 +61,36 @@ export function attachHub(http: Server, file: string) {
   };
 
   // deeds are kept until the owner acknowledges them, so a half-closed socket never loses a gift
+  // owners skip deeds no newer than the last one they applied, so every deed gets its own time
+  let lastDeed = 0;
   const deliver = (owner: string, deed: Deed) => {
+    deed.at = lastDeed = Math.max(Date.now(), lastDeed + 1);
     const st = store.islands[owner];
     if (st) st.deeds = [...st.deeds, deed].slice(-60);
-    const live = ownerOnline(owner);
-    if (live) send(live, { t: "deed", deed });
+    // every open connection of the owner (a reload can leave an old one behind for a moment)
+    for (const c of clients) if (c.profile?.id === owner) send(c, { t: "deed", deed });
   };
+
+  // ---------- stalls: the server holds listed goods, so they can't be spent twice ----------
+  const listings = () => (store.listings ??= []);
+  const showListings = () => {
+    for (const o of room(MARKET_ID)) send(o, { t: "listings", listings: listings() });
+  };
+  /** Three days on, unsold goods go home to their seller. */
+  const expire = () => {
+    const cutoff = Date.now() - STALL.days * 86_400_000;
+    const old = listings().filter((l) => l.at < cutoff);
+    if (!old.length) return;
+    store.listings = listings().filter((l) => l.at >= cutoff);
+    for (const l of old) deliver(l.seller, { by: "the market", kind: "return", item: l.item, qty: l.qty, at: Date.now() });
+    persist();
+    showListings();
+  };
+  const expiry = setInterval(expire, 10 * 60_000);
+  expiry.unref();
+  // the dev server restarts the hub when its code changes: the old one must stop writing
+  http.on("close", () => clearInterval(expiry));
+  let nextListing = Date.now();
 
   wss.on("connection", (ws) => {
     const c: Client = { ws, profile: null, island: null, pose: null };
@@ -162,6 +186,53 @@ export function attachHub(http: Server, file: string) {
           if (!store.islands[m.island] || m.island === me.id || !(m.crop in CROPS)) return;
           deliver(m.island, { by: me.name, kind: "feed", trough: clean(m.trough, 48), crop: m.crop, at: Date.now() });
           persist();
+          return;
+        }
+        case "listings": {
+          expire();
+          send(c, { t: "listings", listings: listings() });
+          return;
+        }
+        case "list": {
+          const qty = Number(m.qty);
+          const price = Number(m.price);
+          const no = (why: string) => send(c, { t: "listed", ok: false, item: String(m.item), qty: Number.isInteger(qty) ? qty : 0, why });
+          if (!isItem(m.item)) return;
+          const b = stallBounds(m.item);
+          if (!Number.isInteger(qty) || qty < 1 || qty > STALL.maxQty) return no(`List 1 to ${STALL.maxQty} at a time.`);
+          if (!Number.isInteger(price) || price < b.min || price > b.max) return no(`Ask between ${b.min}c and ${b.max}c for one.`);
+          if (!store.islands[me.id]) return no("Visit your own island once first, so payments can find you.");
+          if (listings().filter((l) => l.seller === me.id).length >= STALL.slots) return no(`A stall holds ${STALL.slots} listings.`);
+          const l: Listing = { id: (nextListing++).toString(36), seller: me.id, name: me.name, color: me.color, item: m.item, qty, price, at: Date.now() };
+          listings().push(l);
+          send(c, { t: "listed", ok: true, item: l.item, qty });
+          persist();
+          showListings();
+          return;
+        }
+        case "unlist": {
+          const l = listings().find((x) => x.id === m.id && x.seller === me.id);
+          if (!l) return;
+          store.listings = listings().filter((x) => x !== l);
+          deliver(me.id, { by: "your stall", kind: "return", item: l.item, qty: l.qty, at: Date.now() });
+          persist();
+          showListings();
+          return;
+        }
+        case "buy": {
+          const l = listings().find((x) => x.id === m.id);
+          const qty = Number(m.qty);
+          const no = (why: string) => send(c, { t: "bought", ok: false, id: String(m.id), item: l?.item ?? "", qty: Number.isInteger(qty) ? qty : 0, price: l?.price ?? 0, why });
+          if (!l) return no("Someone was quicker: that's gone.");
+          if (l.seller === me.id) return no("That's your own stall.");
+          if (!Number.isInteger(qty) || qty < 1 || qty > l.qty) return no(`Only ${l.qty} left.`);
+          // the listing shrinks before anyone is told, so two buyers can never get the same goods
+          l.qty -= qty;
+          if (!l.qty) store.listings = listings().filter((x) => x !== l);
+          send(c, { t: "bought", ok: true, id: l.id, item: l.item, qty, price: l.price });
+          deliver(l.seller, { by: me.name, kind: "sale", item: l.item, qty, coins: qty * l.price, at: Date.now() });
+          persist();
+          showListings();
           return;
         }
         case "ack": {

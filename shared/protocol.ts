@@ -36,12 +36,30 @@ export interface AtlasEntry {
 
 export type Gift = { from: string; kind: "flower"; color: string } | { from: string; kind: "crop"; crop: string };
 
+/** Goods on a witch's stall at the market, held by the server until sold, taken back or expired. */
+export interface Listing {
+  id: string;
+  /** the seller's profile id, name and hat colour */
+  seller: string;
+  name: string;
+  color: string;
+  item: string;
+  qty: number;
+  /** coins for one */
+  price: number;
+  at: number;
+}
+
 /** Things a visitor did while the owner was away, delivered when the owner returns. */
 export type Deed =
   | { by: string; kind: "water"; plot: number; at: number }
   | { by: string; kind: "gift"; gift: Gift; at: number }
   /** a visitor put a crop in one of your troughs */
-  | { by: string; kind: "feed"; trough: string; crop: string; at: number };
+  | { by: string; kind: "feed"; trough: string; crop: string; at: number }
+  /** someone bought from your stall */
+  | { by: string; kind: "sale"; item: string; qty: number; coins: number; at: number }
+  /** goods back from your stall: taken down, or three days passed */
+  | { by: string; kind: "return"; item: string; qty: number; at: number };
 
 export interface Pose { x: number; z: number; yaw: number; speed: number; drawing: boolean }
 
@@ -56,6 +74,10 @@ export type ClientMsg =
   | { t: "water"; island: string; plots: number[] }
   | { t: "gift"; island: string; gift: Gift }
   | { t: "feed"; island: string; trough: string; crop: string }
+  | { t: "listings" }
+  | { t: "list"; item: string; qty: number; price: number }
+  | { t: "unlist"; id: string }
+  | { t: "buy"; id: string; qty: number }
   | { t: "say"; phrase: number }
   | { t: "spell"; spell: string; x: number; z: number; power: number }
   /** the owner applied every deed up to this time; the server can forget them */
@@ -63,6 +85,11 @@ export type ClientMsg =
 
 export type ServerMsg =
   | { t: "welcome"; deeds: Deed[] }
+  | { t: "listings"; listings: Listing[] }
+  /** answer to `list`: on failure the goods go back to the seller's satchel */
+  | { t: "listed"; ok: boolean; item: string; qty: number; why?: string }
+  /** answer to `buy`: on success the goods are yours; on failure the coins come back */
+  | { t: "bought"; ok: boolean; id: string; item: string; qty: number; price: number; why?: string }
   | { t: "atlas"; islands: AtlasEntry[] }
   | { t: "island"; island: IslandSnap | null }
   | { t: "peers"; peers: { profile: Profile; pose: Pose | null }[] }
