@@ -8,6 +8,9 @@ The look is soft low-poly with toon shading (inspired by Tolan's World); the mag
 (inspired by *Witch Hat Atelier*). Built with Three.js, TypeScript and Vite; 3D assets come from CC0
 packs restyled in Blender plus our own Blender-modelled props.
 
+Play it at **https://aftergrowth.davideghiotto.it** (hosted on a homelab; see
+[deploy/README.md](deploy/README.md)).
+
 ## Run it
 
 Requires Node 22+ (the server runs TypeScript directly). Blender 4+ only to rebuild assets.

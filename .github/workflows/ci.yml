@@ -1,0 +1,94 @@
+name: CI
+
+# Nothing deploys itself: Dokploy's auto-deploy is off, and the deploy job below is what puts main on
+# aftergrowth.davideghiotto.it. So this is the only gate between a push and the live game.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Two quick pushes would otherwise deploy out of order. Queue them instead of cancelling: a cancelled
+# run leaves main green but undeployed.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      # typecheck and the tests
+      - run: npm run check
+      - run: npm run build
+      # the stack Dokploy will run must at least parse
+      - run: docker network create dokploy-network && docker compose -f deploy/compose.yml config --quiet
+
+  deploy:
+    # Only a real push to main reaches the homelab. Dokploy is reached through the Cloudflare tunnel on
+    # deploy-aftergrowth.davideghiotto.it, whose path rule lets only compose.deploy and compose.one
+    # through; the API key gets past Dokploy. Both live in the repository secrets and nowhere else.
+    needs: check
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    env:
+      DOKPLOY_URL: ${{ secrets.DOKPLOY_URL }}
+      DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
+      DOKPLOY_COMPOSE_ID: ${{ secrets.DOKPLOY_COMPOSE_ID }}
+    steps:
+      - name: Check the deploy is set up
+        run: |
+          if [ -z "$DOKPLOY_URL" ] || [ -z "$DOKPLOY_API_KEY" ] || [ -z "$DOKPLOY_COMPOSE_ID" ]; then
+            echo "::notice::Deploy secrets are not set; skipping the deploy"
+            echo "skip=1" >> "$GITHUB_ENV"
+          fi
+
+      # The compose status still reads "done" from the previous deploy for a few seconds, so the id
+      # of the newest deployment is what tells this run apart. Newest by createdAt: Dokploy returns
+      # the list oldest first.
+      - name: Note the current deployment
+        if: env.skip != '1'
+        run: |
+          echo "before=$(curl -fsS --max-time 30 -H "x-api-key: $DOKPLOY_API_KEY" \
+            "$DOKPLOY_URL/api/compose.one?composeId=$DOKPLOY_COMPOSE_ID" |
+            python3 -c 'import json,sys; d=sorted(json.load(sys.stdin)["deployments"], key=lambda x: x["createdAt"]); print(d[-1]["deploymentId"] if d else "")')" >> "$GITHUB_ENV"
+
+      # each deployment is titled with its commit, so Dokploy's Deployments tab is the version history
+      - name: Trigger the Dokploy deploy
+        if: env.skip != '1'
+        env:
+          # through the environment, never pasted into the script: a commit message is untrusted text
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+        run: |
+          python3 -c 'import json,os; print(json.dumps({"composeId": os.environ["DOKPLOY_COMPOSE_ID"], "title": os.environ["COMMIT_MESSAGE"].splitlines()[0][:100], "description": os.environ["GITHUB_SHA"]}))' |
+            curl -fsS --max-time 60 -X POST -H "x-api-key: $DOKPLOY_API_KEY" -H 'content-type: application/json' \
+              --data-binary @- "$DOKPLOY_URL/api/compose.deploy"
+
+      # The trigger only queues the build. Without this wait a red deploy still shows a green workflow.
+      - name: Wait for the deploy to finish
+        if: env.skip != '1'
+        run: |
+          for _ in $(seq 1 80); do
+            sleep 15
+            latest="$(curl -fsS --max-time 30 -H "x-api-key: $DOKPLOY_API_KEY" \
+              "$DOKPLOY_URL/api/compose.one?composeId=$DOKPLOY_COMPOSE_ID" |
+              python3 -c 'import json,sys; d=sorted(json.load(sys.stdin)["deployments"], key=lambda x: x["createdAt"]); print(d[-1]["deploymentId"], d[-1]["status"]) if d else print("none idle")')"
+            id="${latest%% *}"
+            status="${latest##* }"
+            if [ "$id" = "$before" ]; then
+              echo "waiting for Dokploy to pick up the deploy"
+              continue
+            fi
+            echo "deployment $id: $status"
+            case "$status" in
+              done) exit 0 ;;
+              error) echo "::error::Dokploy reported a failed deploy"; exit 1 ;;
+            esac
+          done
+          echo "::error::deploy still running after 20 minutes"
+          exit 1

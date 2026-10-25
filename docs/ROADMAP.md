@@ -2,8 +2,8 @@
 
 ## Known issues and limits
 
-- **Not deployed.** `npm run build && npm start` serves everything on one port; it will be hosted on
-  the homelab mini PC.
+- **Hosted on one homelab box** (`deploy/README.md`): one container, one JSON file of state, no
+  replicas. Back it up; a disk failure loses every island.
 - **No real accounts.** Identity is a secret token in the browser; clearing site data makes a new witch.
 - **Reloads.** Travelling, visiting and saving the editor reload the page (behind the portal veil or
   a loading screen).
