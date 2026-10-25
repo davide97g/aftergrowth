@@ -25,6 +25,7 @@ import { PALETTE, type Token } from "../core/palette";
 import { KINDS } from "../island/layout";
 import { shared, toon, toonRamp } from "../render/toon";
 import type { Mood } from "./daycycle";
+import type { Sighting } from "./critters";
 import type { IslandWorld } from "./world";
 
 /** What a footstep lands on. */
@@ -167,7 +168,7 @@ function dewMaterial() {
 
 interface Puddle { mesh: Mesh; mat: ShaderMaterial; x: number; z: number; r: number; aspect: number; level: number; dries: number }
 interface Leaf { pos: Vector3; spin: Euler; rate: Vector3; seed: number; landed: number; life: number }
-interface Bee { hive: Vector3; from: Vector3; to: Vector3; t: number; len: number; stay: number; out: boolean; seed: number }
+interface Bee { hive: Vector3; from: Vector3; to: Vector3; t: number; len: number; stay: number; out: boolean; seed: number; at: Vector3; seen: boolean }
 
 const m4 = new Matrix4();
 const q = new Quaternion();
@@ -305,7 +306,7 @@ export class Atmosphere {
       for (const h of hives) {
         for (let i = 0; i < 3; i++) {
           const hive = h.pos.clone().setY(world.ground(h.pos.x, h.pos.z) + 0.55);
-          this.bees.push({ hive, from: hive.clone(), to: hive.clone(), t: 1, len: 1, stay: rand() * 3, out: false, seed: rand() * 100 });
+          this.bees.push({ hive, from: hive.clone(), to: hive.clone(), t: 1, len: 1, stay: rand() * 3, out: false, seed: rand() * 100, at: hive.clone(), seen: false });
         }
       }
       scene.add(this.beeMesh);
@@ -343,6 +344,11 @@ export class Atmosphere {
       scene.add(mesh);
       this.drops.push({ mesh, vel: new Vector3(), life: 1 });
     }
+  }
+
+  /** Bees out of the hive, for the field journal. */
+  sightings(): Sighting[] {
+    return this.bees.filter((b) => b.seen).map((b) => ({ id: "bee" as const, pos: b.at }));
   }
 
   /** The puddle under (x, z), if there's water in it. */
@@ -529,6 +535,7 @@ export class Atmosphere {
           }
         } else b.t = Math.min(1, b.t + (dt * 1.3) / b.len);
         const home = !b.out && b.t >= 1;
+        b.seen = !home;
         if (home) return this.beeMesh!.setMatrixAt(i, HIDDEN);
         const s = this.time * 9 + b.seed;
         sv.lerpVectors(b.from, b.to, b.t);
@@ -538,6 +545,7 @@ export class Atmosphere {
         sv.x += Math.sin(s) * r;
         sv.z += Math.cos(s * 1.3) * r;
         sv.y += Math.sin(s * 2.1) * 0.04;
+        b.at.copy(sv);
         this.beeMesh!.setMatrixAt(i, m4.compose(sv, q.setFromAxisAngle(Object3D.DEFAULT_UP, s * 0.3), new Vector3(1, 1, 1)));
       });
       this.beeMesh.instanceMatrix.needsUpdate = true;

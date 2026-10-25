@@ -35,6 +35,8 @@ import { deliver } from "./post";
 import { FESTIVALS, SEASONS, SEASON_DAYS, SEASON_NAMES, type Season, dayOfSeason, daysToFestival, festivalOn, seasonOf } from "../../shared/seasons";
 import { marketDay } from "../../shared/prices";
 import { Festivities } from "../world/festival";
+import { Critters, type Sighting } from "../world/critters";
+import { CRITTER_IDS, JOURNAL, MILESTONES, journalHtml } from "../ui/journal";
 import { sampleMood } from "../world/daycycle";
 import { Life } from "../world/life";
 import { Weather } from "../world/weather";
@@ -346,6 +348,52 @@ export async function startGame(account: Account) {
   });
   const festivities = new Festivities(scene, world, festival, stage.sky, atmos);
 
+  // ---------- the field journal: walk up to a creature and sketch it ----------
+  const critters = new Critters(scene, world, season);
+  magic.journal = () => journalHtml(state.journal ?? {});
+  let sketching = false;
+  const sketch = (s: Sighting) => {
+    const page = JOURNAL[s.id];
+    sketching = true;
+    witch.drawing = true;
+    witch.root.rotation.y = Math.atan2(s.pos.x - witch.position.x, s.pos.z - witch.position.z);
+    const scratch = setInterval(() => sound.scratch(18), 120);
+    setTimeout(() => {
+      clearInterval(scratch);
+      witch.drawing = false;
+      sketching = false;
+      const found = (state.journal ??= {});
+      if (found[s.id]) return;
+      found[s.id] = state.day;
+      const n = CRITTER_IDS.filter((id) => found[id]).length;
+      const prize = MILESTONES.find(([at]) => at === n)?.[1] ?? 0;
+      state.coins += prize;
+      hud.toast(`${page.name} · page ${n} of ${CRITTER_IDS.length}`, prize ? `${page.note} A full page earns you ${prize} coins from the Scriptorium.` : page.note);
+      changed();
+      sound.chime();
+      magic.refreshGrimoire();
+    }, 1500);
+  };
+  const sketchable = (near: Vector3) => {
+    if (sketching || magic.drawing) return null;
+    const found = state.journal ?? {};
+    let best: Sighting | null = null;
+    let bd = Infinity;
+    for (const s of [...life.sightings(), ...birds.sightings(), ...atmos.sightings(), ...critters.sightings()]) {
+      if (found[s.id]) continue;
+      // high up, or out on the water, can be sketched from further away
+      const reach = s.id === "owl" ? 5 : s.id === "moth" || s.id === "frog" || s.id === "dragonfly" || s.id === "firefly" ? 3.2 : 2.2;
+      // fireflies are all around her: anything else nearby comes first
+      const d = s.id === "firefly" ? 3.1 : Math.hypot(s.pos.x - near.x, s.pos.z - near.z);
+      if (d < reach && d < bd) {
+        bd = d;
+        best = s;
+      }
+    }
+    if (!best) return null;
+    const s = { id: best.id, pos: best.pos.clone() };
+    return { pos: near.clone(), reach: 1, label: `Sketch the ${JOURNAL[s.id].name.toLowerCase()}`, act: () => sketch(s), priority: -0.4 };
+  };
   let festivalAnnounced = false;
   const tweens = new Tweens();
   const travel = new PortalTravel(scene, world, witch, rig.camera, veil, tweens, life);
@@ -394,7 +442,7 @@ export async function startGame(account: Account) {
   // ---------- what F does outside ----------
   const outdoors = new Interactions(rig.camera);
   for (const p of [rest.action, garden.fill, garden.seat, garden.hive, garden.sign, cottage.door, workshop.cauldron, workshop.market,
-    workshop.pondside, festivities.action, (near: Vector3) => familiar?.action(near) ?? null, ...(bazaar && stalls ? [bazaar.action, stalls.action] : []), ...(realm?.actions ?? []), palaceDoor, magic.contraptions.action, farm.action, flowers.action, gather.action, animals.action, animals.trough, social.mailbox, portal]) outdoors.add(p);
+    workshop.pondside, festivities.action, sketchable, (near: Vector3) => familiar?.action(near) ?? null, ...(bazaar && stalls ? [bazaar.action, stalls.action] : []), ...(realm?.actions ?? []), palaceDoor, magic.contraptions.action, farm.action, flowers.action, gather.action, animals.action, animals.trough, social.mailbox, portal]) outdoors.add(p);
   outdoors.onAct = () => witch.react("gesture");
   input.onPick = (p) => (cottage.inside ? cottage.indoors : outdoors).clicked(p);
 
@@ -485,6 +533,7 @@ export async function startGame(account: Account) {
     life.update(dt, mood, witch.position);
     atmos.update(dt, hours, clock.hour, mood, weather.raining, weather.windStrength, witch.position);
     festivities.update(dt, mood);
+    critters.update(dt, { night: mood.glow, rain: weather.raining, wet: atmos.wet, player: witch.position });
     if (festival && !festivalAnnounced && festivities.level > 0.3 && !cottage.inside) {
       festivalAnnounced = true;
       hud.toast(`Tonight: ${festival.name}`, festival.note);
@@ -567,5 +616,5 @@ export async function startGame(account: Account) {
   if (market) hud.toast("Lantern Market", "Six shops, new prices every day. Talk to a keeper at their counter.");
   if (kingdom) hud.toast("Aetherhold", "The royal city, seat of magic. Climb to the palace; the tavern, the Arcanum and the spell range are on the way.");
   // handy in the browser console while developing
-  Object.assign(window, { __game: { familiar: () => familiar, atmos, letters, kettle, cottage, clock, witch, world, scene, camera: rig.camera, state, net, social, weather, sound, magic, satchel, shops, map } });
+  Object.assign(window, { __game: { familiar: () => familiar, atmos, letters, kettle, cottage, critters, clock, witch, world, scene, camera: rig.camera, state, net, social, weather, sound, magic, satchel, shops, map } });
 }

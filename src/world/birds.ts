@@ -1,5 +1,6 @@
 import { BufferAttribute, BufferGeometry, ConeGeometry, DoubleSide, Group, Mesh, MeshToonMaterial, Scene, SphereGeometry, Vector3 } from "three";
 import { toonRamp } from "../render/toon";
+import type { Sighting } from "./critters";
 import type { IslandWorld as World } from "./world";
 
 interface Bird { root: Group; wings: Mesh[]; head: Mesh }
@@ -90,6 +91,12 @@ export class Birds {
     const a = Math.sin(this.time * speed) * amount;
     b.wings[0].rotation.z = a;
     b.wings[1].rotation.z = -a;
+  }
+
+  /** The birds pecking about, for the field journal: blue, brown and red-breasted. */
+  sightings(): Sighting[] {
+    const kinds = ["bluebird", "sparrow", "robin", "bluebird"] as const;
+    return this.hoppers.flatMap((h, i) => (h.root.visible && h.state !== "fly" ? [{ id: kinds[i], pos: h.root.position }] : []));
   }
 
   update(dt: number, player: Vector3, night: boolean, raining: boolean) {

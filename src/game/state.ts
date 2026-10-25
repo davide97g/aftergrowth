@@ -3,6 +3,7 @@ import type { IslandLayout } from "../island/layout";
 import type { SpellId } from "../magic/glyph";
 import type { Herd } from "../farm/livestock.ts";
 import { type Post, newPost } from "./post.ts";
+import type { CritterId } from "../world/critters";
 import { DEFAULT_FAMILIAR, FAMILIAR_KINDS, type FamiliarSave } from "../../shared/familiars.ts";
 import type { P, Sigil } from "../magic/recognizer";
 
@@ -125,6 +126,8 @@ export interface Save {
   post: Post;
   /** tea that's still working: sunpetal until (real time), bluebell glyphs left, chamomile for tonight */
   tea?: { sunUntil?: number; steady?: number; dreams?: boolean };
+  /** the field journal: the game day each creature was first sketched */
+  journal?: Partial<Record<CritterId, number>>;
   /** the last season you were told about (season and its number) */
   seenSeason?: string;
   /** your familiar: a cat, a fox or a frog, and its name */

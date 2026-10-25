@@ -236,6 +236,16 @@ export class Magic {
     this.grimoire.toggle(true);
   }
 
+  /** The field journal's pages go into the grimoire too. */
+  set journal(html: () => string) {
+    this.grimoire.journal = html;
+    this.grimoire.refresh();
+  }
+
+  refreshGrimoire() {
+    this.grimoire.refresh();
+  }
+
   set baseWind(v: number) {
     this.spells.baseWind = v;
   }

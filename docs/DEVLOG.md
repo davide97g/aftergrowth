@@ -270,6 +270,9 @@ Six pieces, one after another:
   everyone shares them; palette tints on top of the island theme, a climate per season, snow (its own
   point cloud), footprints and breath in winter, crop growth by season, and four festival nights
   drawn mostly in the sky shader (aurora, meteors) plus instanced lanterns and a petal storm.
+- **The field journal** (`world/critters.ts`, `ui/journal.ts`): six new shy creatures with their own
+  hours, and every existing one (butterflies, bunnies, birds, bees, fireflies) reports sightings to a
+  single "Sketch the …" prompt; pages are ink SVGs in the grimoire.
 
 ## How things were checked
 

@@ -44,6 +44,8 @@ function sigilSvg(points: P[], size = 64): string {
 export class Grimoire {
   private known = new Set<string>(["growth", "water"]);
   private panel = document.getElementById("grimoire")!;
+  /** the field journal's section, drawn after the spells */
+  journal: () => string = () => "";
 
   /** `learned` are the sigils the witch can draw; the others need a scroll first */
   constructor(private learned: () => Sigil[]) {
@@ -113,6 +115,7 @@ export class Grimoire {
         </ol></section>
       <section><h3>Sigils</h3><ul class="entries">${sigils.join("")}</ul></section>
       <section><h3>Combinations</h3><ul class="entries">${results.join("")}</ul></section>
-      <section><h3>Mistakes worth remembering</h3>${fails.length ? `<ul class="entries">${fails.join("")}</ul>` : `<p class="empty">None yet. Every witch smudges eventually.</p>`}</section>`;
+      <section><h3>Mistakes worth remembering</h3>${fails.length ? `<ul class="entries">${fails.join("")}</ul>` : `<p class="empty">None yet. Every witch smudges eventually.</p>`}</section>
+      ${this.journal()}`;
   }
 }

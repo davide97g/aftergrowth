@@ -184,6 +184,25 @@ Every system and its numbers. Values live in code; the file is named next to eac
   the reward (about 1.35× what a shop pays, or seeds or charms). Favours left too long are dropped.
 - Letters are the same for the same witch and day; only the newest 30 are kept.
 
+## The field journal (`world/critters.ts`, `ui/journal.ts`)
+
+- Walk up to a creature and press F ("Sketch the …", when nothing else is closer): she kneels and
+  sketches it, and it gets an ink page in the grimoire (G) with the day you found it. Before that,
+  the page holds a hint.
+- 16 pages: four butterflies (by colour), the meadow bunny, the bluebird, sparrow and robin, the
+  honeybee (needs a hive), fireflies (warm nights), and six shy ones:
+
+| Creature | When and where |
+|---|---|
+| Pond frog | on a lily pad at night or in the rain; dives if you get within a step (not in winter) |
+| Moon moth | circling a lamp post, a lantern or the cottage door at night (not in winter) |
+| Garden snail | out on wet ground after rain, by day (not in winter) |
+| Ladybird | walking round a flower on spring and summer days |
+| Pond dragonfly | darting over the pond on spring and summer days |
+| Tawny owl | in a treetop at night, turning its head to follow you |
+
+- The Scriptorium pays for full pages: 10 coins at 4, 25 at 8, 60 for all 16.
+
 ## The cottage (`game/cottage.ts`, `house/`)
 
 - F at the door goes inside (your own island only).

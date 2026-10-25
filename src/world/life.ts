@@ -18,6 +18,7 @@ import { prop } from "../core/assets";
 import { PALETTE } from "../core/palette";
 import { shared, toon, toonRamp } from "../render/toon";
 import type { Mood } from "./daycycle";
+import type { Sighting } from "./critters";
 import type { World } from "./world";
 
 /** Glowing drifting motes: fireflies at night, golden pollen at sunset. */
@@ -257,6 +258,17 @@ export class Life {
     return best;
   }
 
+  /** Butterflies (by colour) and bunnies, for the field journal. */
+  sightings(): Sighting[] {
+    const colors = ["butterfly_pink", "butterfly_yellow", "butterfly_blue", "butterfly_white"] as const;
+    const out: Sighting[] = this.butterflies.filter((b) => b.obj.visible).map((b) => ({ id: colors[this.butterflies.indexOf(b) % 4], pos: b.obj.position }));
+    for (const b of this.bunnies) out.push({ id: "bunny", pos: b.obj.position });
+    if (this.fireflies.points.visible) out.push({ id: "firefly", pos: this.fireflyNear });
+    return out;
+  }
+  /** where the fireflies are nearest: right around her */
+  private fireflyNear = new Vector3();
+
   /** Called by the player each footstep. */
   footstep(at: Vector3, running: boolean) {
     const n = running ? 2 : 1;
@@ -274,6 +286,7 @@ export class Life {
     this.world.portal.uniforms.uGlow.value = mood.glow;
 
     this.fireflies.opacity = mood.fireflies;
+    this.fireflyNear.copy(player);
     this.pollen.opacity = mood.pollen;
 
     this.smokeTimer -= dt;

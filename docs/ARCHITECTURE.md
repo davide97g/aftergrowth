@@ -91,7 +91,9 @@ Kept on the server per account (`/api/save`), sent every 5 seconds when it chang
 `keepalive` when the page is leaving. The browser keeps a copy (`af.save.<user>`) marked unsynced
 until the server confirms it, and plays that copy if a reload beat the upload. Contents: coins, ink, the `bag` (every carried item by id, see below), tool levels (can, bottle, cauldron),
 the 12 plots (crop, growth hours, wet hours, overgrown), the 3 stone inscriptions, the shed, paid-for
-land, mailbox gifts, beehive honey, day and hour, and your island layout. `load()` migrates older
+land, mailbox gifts, beehive honey, day and hour, your island layout, your familiar (kind and
+name), the post (letters and favours on their way), tea still working, the field journal and the
+last season you were told about. `load()` migrates older
 saves: missing fields are filled in, and the old separate `seeds`/`harvest`/`flowers`/`goods`
 records move into the bag (`fromLegacy`). Use `count`, `give` and `take` to touch the bag.
 
