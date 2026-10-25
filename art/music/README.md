@@ -1,6 +1,6 @@
 # Seeds on the Wind
 
-The main theme of Apocalipse Farmers. It's an original waltz in 6/8 and D major, about 62 bpm per
+The main theme of Aftergrowth. It's an original waltz in 6/8 and D major, about 62 bpm per
 dotted quarter, and lasts 66 seconds. The game plays it live from `src/audio/theme.ts`, which
 synthesises every note with Web Audio, and loops it softly outdoors. `seeds-on-the-wind.mp3` is the
 same code rendered offline, kept for listening and sharing.

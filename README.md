@@ -1,4 +1,4 @@
-# Apocalipse Farmers
+# Aftergrowth
 
 A cozy browser game about farming and hand-drawn ink magic on floating sky-islands. You play a chibi
 apprentice witch: grow crops, brew ink from wildflowers, draw glyphs that cast spells, carve them into

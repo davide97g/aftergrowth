@@ -1,0 +1,9 @@
+node_modules
+dist
+data
+assets/raw
+assets/build
+art
+.git
+**/__pycache__
+.DS_Store

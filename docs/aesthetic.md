@@ -1,4 +1,4 @@
-# Aesthetic Bible — Apocalipse Farmers
+# Aesthetic Bible — Aftergrowth
 
 Status: **v0.3 — in the game** (2026-10-25). See DEVLOG.md for how it evolved.
 

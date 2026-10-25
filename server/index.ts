@@ -22,4 +22,4 @@ const http = createServer((req, res) => {
   createReadStream(file).pipe(res);
 });
 attachHub(http, process.env.DATA ?? join(import.meta.dirname, "..", "data", "world.json"));
-http.listen(port, () => console.log(`Apocalipse Farmers on http://localhost:${port}`));
+http.listen(port, () => console.log(`Aftergrowth on http://localhost:${port}`));
