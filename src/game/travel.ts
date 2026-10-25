@@ -1,4 +1,5 @@
 import { Camera, Scene, Vector3 } from "three";
+import { sound } from "../audio/sound";
 import { PortalOverlay, portalGroundCircle } from "../fx/portal";
 import { type Tweens, easeOutBack, smoothstep } from "../fx/tween";
 import type { Witch } from "../player/witch";
@@ -42,6 +43,7 @@ export class PortalTravel {
     if (this.active) return;
     this.active = true;
     beforeLeave();
+    sound.whoosh();
     const w = this.witch;
     const from = w.position.clone();
     const into = this.world.portalPos.clone();

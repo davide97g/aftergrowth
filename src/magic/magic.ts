@@ -1,4 +1,5 @@
 import { Camera, OrthographicCamera, Plane, Raycaster, Scene, Vector2, Vector3 } from "three";
+import { sound } from "../audio/sound";
 import type { Save } from "../game/state";
 import type { Hud } from "../ui/hud";
 import type { Witch } from "../player/witch";
@@ -73,6 +74,7 @@ export class Magic {
     // on your own island a visitor's rain really waters your crops; elsewhere it's only a show
     if (spell === "fizzle") this.spells.fizzle(at);
     else this.spells.cast(spell as SpellId, at, power, null, !this.canCarve);
+    sound.spell(spell as SpellId | "fizzle", power);
   }
 
   /** True while the pen is out: the witch should not walk. */
@@ -124,6 +126,7 @@ export class Magic {
 
   private finish(fizzled: boolean) {
     this.overlay.finish(fizzled ? "fizzle" : "cast");
+    sound.seal(fizzled);
     this.witch.react(fizzled ? "fizzle" : "cast");
     setTimeout(() => {
       this.witch.drawing = false;
@@ -179,6 +182,7 @@ export class Magic {
     }
     const dir = r.dir ? RIGHT.clone().multiplyScalar(r.dir.x).addScaledVector(UP, -r.dir.y).normalize() : null;
     this.spells.cast(r.spell, at!, r.power, dir);
+    sound.spell(r.spell, r.power);
     this.onCast(r.spell, at!, r.power);
     const strength = ["", "", " · strong", " · stronger", " · strongest"][r.power];
     this.hud.toast(`${SPELL_NAMES[r.spell]}${strength}`, fresh ? "A new page in the grimoire." : `${cost} ${cost === 1 ? "drop" : "drops"} of ink`);

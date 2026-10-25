@@ -1,3 +1,4 @@
+import { sound } from "../audio/sound";
 import { CANS, CROPS, CROP_IDS, type CropId, type Save, inkMax } from "../game/state";
 import { formatHour } from "../world/daycycle";
 
@@ -39,6 +40,14 @@ export class Hud {
       const b = (e.target as HTMLElement).closest("button[data-seed]") as HTMLButtonElement | null;
       if (b) this.onSelectSeed(b.dataset.seed as CropId);
     });
+    const mute = document.getElementById("sound-toggle")!;
+    const showMute = (muted: boolean) => {
+      mute.textContent = `Sound ${muted ? "off" : "on"} · M`;
+      mute.setAttribute("aria-pressed", String(!muted));
+    };
+    mute.addEventListener("click", () => sound.toggle());
+    sound.onMute = showMute;
+    showMute(sound.muted);
     const reset = document.getElementById("reset-save") as HTMLButtonElement;
     reset.addEventListener("click", () => {
       if (reset.dataset.armed) return this.onReset();

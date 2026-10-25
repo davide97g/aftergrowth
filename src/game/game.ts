@@ -1,4 +1,5 @@
 import { Timer, Vector3 } from "three";
+import { sound } from "../audio/sound";
 import { CameraRig } from "../core/camera";
 import { Input } from "../core/input";
 import { setTheme } from "../core/palette";
@@ -18,6 +19,7 @@ import { Birds } from "../world/birds";
 import { sampleMood } from "../world/daycycle";
 import { Life } from "../world/life";
 import { Weather } from "../world/weather";
+import type { Pt } from "../world/walkmask";
 import { buildWorld, seedOf } from "../world/world";
 import { arrive, layoutFor } from "./arrival";
 import { Cottage } from "./cottage";
@@ -32,6 +34,13 @@ import { PortalTravel } from "./travel";
 const HOURS_PER_SECOND = 1 / 60;
 /** your home island always has twelve plots and three carving stones */
 const HOME = { plots: 12, stones: 3 };
+
+/** 1 standing on the nearest of `points`, fading to 0 at `range`. */
+function nearness(at: Vector3, points: Pt[], range: number) {
+  let best = Infinity;
+  for (const [x, z] of points) best = Math.min(best, Math.hypot(x - at.x, z - at.z));
+  return Math.max(0, 1 - best / range) ** 2;
+}
 
 /** Build everything for this page load and run the frame loop. */
 export async function startGame() {
@@ -71,14 +80,21 @@ export async function startGame() {
   witch.root.rotation.y = Math.PI / 4;
   scene.add(witch.root);
   const life = await Life.create(scene, world);
-  witch.onFootstep = (at, running) => life.footstep(at, running);
+  witch.onFootstep = (at, running) => {
+    life.footstep(at, running);
+    sound.footstep(running);
+  };
   const rig = new CameraRig(witch.position);
   stage.usePost(rig.camera);
   const input = new Input(canvas, rig.camera);
   const clock = { hour: Number(params.get("t") ?? state.hour), speed: 1 };
   const hud = new Hud(clock);
   const changed = (msg?: string) => {
-    if (msg) hud.pop(msg);
+    if (msg) {
+      hud.pop(msg);
+      if (msg.includes("coins")) sound.coins();
+      else sound.pop();
+    }
     hud.inventory(state);
   };
 
@@ -224,6 +240,17 @@ export async function startGame() {
     social.update(dt, witch, cottage.inside ? world.door : null);
     cottage.update(dt, mood);
     birds.update(dt, witch.position, mood.glow > 0.6, weather.raining > 0.5);
+    sound.update(dt, {
+      wind: Math.min(1, (weather.windStrength - 1) / 1.6),
+      rain: weather.raining,
+      day: 1 - mood.glow,
+      water: world.pond ? nearness(witch.position, world.pond, 6) : 0,
+      fire: cottage.inside ? 0.7 : nearness(witch.position, world.flames.map((f) => {
+        const p = f.getWorldPosition(new Vector3());
+        return [p.x, p.z] as Pt;
+      }), 5),
+      inside: cottage.inside,
+    });
 
     // prompts, camera, frame
     outdoors.enabled = !magic.drawing && !cottage.inside && !editor.active && !travel.active;
@@ -242,5 +269,5 @@ export async function startGame() {
   if (visiting) hud.toast(`${host!.name}'s island`, "Water their crops, leave a gift in the mailbox. The portal takes you home.");
   if (commons) hud.toast("Blossom Commons", "Everyone's island meets here.");
   // handy in the browser console while developing
-  Object.assign(window, { __game: { clock, witch, world, scene, camera: rig.camera, state, net, social, weather } });
+  Object.assign(window, { __game: { clock, witch, world, scene, camera: rig.camera, state, net, social, weather, sound } });
 }

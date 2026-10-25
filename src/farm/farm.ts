@@ -1,4 +1,5 @@
 import { CircleGeometry, Group, Mesh, MeshBasicMaterial, Object3D, Scene, Vector3 } from "three";
+import { sound } from "../audio/sound";
 import { prop } from "../core/assets";
 import type { Action } from "../game/interact";
 import { CANS, CROPS, CROP_IDS, type CropId, type Plot, type Save, clearPrice } from "../game/state";
@@ -191,6 +192,7 @@ export class Farm {
   private pour(i: number): number[] {
     const st = this.state;
     st.can.water--;
+    sound.pour();
     const reach = CANS[st.can.level].reach;
     const row = Math.floor(i / ROW);
     const hit: number[] = [];

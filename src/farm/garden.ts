@@ -1,4 +1,5 @@
 import { IcosahedronGeometry, Mesh, MeshBasicMaterial, Object3D, Scene, Vector3 } from "three";
+import { sound } from "../audio/sound";
 import type { Action } from "../game/interact";
 import { CANS, type Save } from "../game/state";
 import type { Mood } from "../world/daycycle";
@@ -61,6 +62,7 @@ export class Garden {
       pos: at, reach: 1.6, label: `Fill the ${CANS[can.level].name.toLowerCase()} (${can.water}/${holds})`, priority: 1,
       act: () => {
         can.water = holds;
+        sound.pour(true);
         this.hooks.onChange("Can filled");
       },
     };

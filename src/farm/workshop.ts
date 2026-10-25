@@ -1,4 +1,5 @@
 import { AdditiveBlending, Color, IcosahedronGeometry, Mesh, MeshBasicMaterial, Scene, Vector3 } from "three";
+import { sound } from "../audio/sound";
 import type { Action } from "../game/interact";
 import { BOTTLES, BREW_FLOWERS, CANS, CAULDRONS, CROPS, CROP_IDS, type CropId, type Save, brewInk, inkMax, takeFlowers, totalFlowers } from "../game/state";
 import { type Pt } from "../world/walkmask";
@@ -78,6 +79,7 @@ export class Workshop {
       pos: at, reach: 1.2, label: `Fill the ${CANS[can.level].name.toLowerCase()} (${can.water}/${holds})`,
       act: () => {
         can.water = holds;
+        sound.pour(true);
         this.onChange("Can filled");
       },
     };

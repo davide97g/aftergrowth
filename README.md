@@ -37,6 +37,7 @@ Useful URL parameters while developing: `?t=18` start at 18:00, `?weather=rain` 
 | Say a phrase | T |
 | Edit your island | B |
 | Zoom | scroll / pinch |
+| Mute | M (or the clock panel) |
 | Time of day | clock pill, top right |
 
 ## Where things are
@@ -58,7 +59,7 @@ src/
   render/            toon materials, wind and water shaders, bloom + tilt-shift
   world/             the island world built from a layout, walk mask, day/night, sky,
                      weather, birds, ambient life (butterflies, fireflies, bunnies, clouds)
-  island/            island shapes, layout data, terrain generator, special models, editor
+  island/            island shapes, layout data, terrain generator, special models, editor, costs
   player/            the witch (procedural animation)
   farm/              plots, wild flowers, cauldron + market, garden objects (wells, hives, seats)
   magic/             glyph recognizer, seal rules, ink overlay, spells, contraptions, grimoire
@@ -66,10 +67,11 @@ src/
   house/             cottage interior, music box
   fx/                portal veil and ground circle, tweens
   ui/                HUD, fade, styles
+  audio/             every sound, synthesised with Web Audio
 server/              island hub (WebSocket rooms, snapshots, deeds) + production server
 shared/              protocol types and the colour palette (used by game, server, Blender)
 tools/blender/       asset builders: props, the chibi witch, furniture; preview tools
-tests/               glyph recognizer and island layout tests
+tests/               glyph recognizer, island layout and economy tests
 public/assets/       built .glb models (committed; rebuilt by `npm run assets`)
 art/                 concept art (Codex image generation, prompts alongside), reference, screenshots
 docs/                design and technical docs (below)

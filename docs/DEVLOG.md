@@ -109,6 +109,18 @@ multiplayer (live and async); magic drawn with rules, like *Witch Hat Atelier*.
   layout, so Discard (or a timed save during editing) never keeps a half-finished edit.
 - Wrote this devlog, `GAMEPLAY.md`, `ARCHITECTURE.md`, `ROADMAP.md`; moved credits to `CREDITS.md`.
 
+## 10. Coins with a purpose, and sound
+
+- **Version control:** the project became a git repository.
+- **Economy:** coins had only two sinks (seeds, the copper can). Added market upgrades for the ink
+  bottle and the cauldron; new islands start with 6 open plots and the rest overgrown, cleared for
+  rising prices; the island editor now charges for new objects and extra land. Removed objects go
+  to a shed and come back free, so rearranging never punishes you. The bill is worked out by
+  comparing the layout before and after the edit (`island/costs.ts`), so it can't drift from what
+  is on screen, and is paid only on Done. Old saves keep everything they had.
+- **Sound:** synthesised in Web Audio like the music box, no files to license or load: wind, rain,
+  pond, fire, birds, crickets, footsteps, pen scratch, seal bells, spells, pouring, coins, portal.
+
 ## How things were checked
 
 Every step was checked in a headless browser (screenshots, scripted clicks, keyboard and mouse

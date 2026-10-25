@@ -1,3 +1,4 @@
+import { sound } from "../audio/sound";
 import type { P } from "./recognizer";
 
 interface Stroke { pts: P[]; widths: number[] }
@@ -84,6 +85,7 @@ export class InkOverlay {
     const last = this.current.pts[this.current.pts.length - 1];
     const d = Math.hypot(p.x - last.x, p.y - last.y);
     if (d < 1.5) return;
+    sound.scratch(d);
     // fast strokes thin out like a dip pen running dry
     const w = Math.max(2.2, Math.min(6.5, 7 - d * 0.12));
     const prev = this.current.widths[this.current.widths.length - 1];
