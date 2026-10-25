@@ -136,6 +136,14 @@ multiplayer (live and async); magic drawn with rules, like *Witch Hat Atelier*.
 - **Shops** share one panel with Buy/Sell tabs, today's special and price trends. The home crate
   became the basic shop (80%, three seeds); upgrades moved to the Inkwell and the Outfitter.
 
+## 12. Materials (market phase 2)
+
+- Wood, stone, glass and brass joined the item catalog. Prune trees and chip rocks on your own
+  island once per game day (`farm/gather.ts`, with a little shake and a knock or click).
+- The editor's bill now includes materials (`BUILD` in `island/costs.ts`), and names what you're
+  short of. Coin prices of built things went down to make room for the materials.
+- Timber & Stone opened. The Crystal decanter needs 2 glass and the Moon cauldron 3 brass.
+
 ## How things were checked
 
 Every step was checked in a headless browser (screenshots, scripted clicks, keyboard and mouse

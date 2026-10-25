@@ -116,7 +116,8 @@ One WebSocket on `/net`, JSON messages.
 - **A prop model:** Kenney: add to `KENNEY_PROPS` in `build_props.py`. Your own: write a builder
   function there. Run `npm run assets`.
 - **A placeable object:** add it to `KINDS` in `island/layout.ts` (category, model, solid, optional
-  `use`). It appears in the editor automatically. New behaviour goes in `farm/garden.ts`.
+  `use`) and give it a price in `island/costs.ts` (`PRICES`, plus `BUILD` for materials). It appears
+  in the editor automatically. New behaviour goes in `farm/garden.ts`.
 - **A crop:** add it to `CROPS` in `shared/items.ts` (and a model). Its seed and crop items, the
   seed bar and the shops follow.
 - **An item:** add it to `ITEMS` in `shared/items.ts` (widen `ItemId`), then list it in a shop's

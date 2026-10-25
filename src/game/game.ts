@@ -6,6 +6,7 @@ import { setTheme } from "../core/palette";
 import { Farm } from "../farm/farm";
 import { Flowers } from "../farm/flowers";
 import { Garden } from "../farm/garden";
+import { Gather } from "../farm/gather";
 import { Workshop } from "../farm/workshop";
 import { Market } from "../market/market";
 import { ShopPanel } from "../market/panel";
@@ -140,6 +141,7 @@ export async function startGame() {
   const owner = commons ? "Blossom Commons" : market ? "Lantern Market" : host ? host.name : me.name;
   const garden = new Garden(scene, world, state, { onChange: changed, sit: rest.sitAt, owner, mine });
   rest.onStand = () => (garden.riding = null);
+  const gather = new Gather(world, state, changed, mine);
 
   const persist = () => {
     state.hour = clock.hour;
@@ -187,7 +189,7 @@ export async function startGame() {
   // ---------- what F does outside ----------
   const outdoors = new Interactions(rig.camera);
   for (const p of [rest.action, garden.fill, garden.seat, garden.hive, garden.sign, cottage.door, workshop.cauldron, workshop.market,
-    workshop.pondside, ...(bazaar ? [bazaar.action, bazaar.board] : []), magic.contraptions.action, farm.action, flowers.action, social.mailbox, social.portal(world.portalPos)]) outdoors.add(p);
+    workshop.pondside, ...(bazaar ? [bazaar.action, bazaar.board] : []), magic.contraptions.action, farm.action, flowers.action, gather.action, social.mailbox, social.portal(world.portalPos)]) outdoors.add(p);
   outdoors.onAct = () => witch.react("gesture");
   input.onPick = (p) => (cottage.inside ? cottage.indoors : outdoors).clicked(p);
 
@@ -245,6 +247,7 @@ export async function startGame() {
 
     // everything else that lives
     garden.update(dt, hours, mood);
+    gather.update(dt);
     life.update(dt, mood, witch.position);
     magic.update(dt, hours, mood);
     farm.update(dt, hours);

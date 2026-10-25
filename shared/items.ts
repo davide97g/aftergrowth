@@ -27,8 +27,11 @@ export const CROPS: Record<CropId, CropDef> = {
 export const CROP_IDS = Object.keys(CROPS) as CropId[];
 export const FLOWER_COLORS: FlowerColor[] = ["pink", "yellow", "blue", "white"];
 
-export type ItemCat = "seed" | "crop" | "flower" | "produce";
-export type ItemId = `seed:${CropId}` | `crop:${CropId}` | `flower:${FlowerColor}` | "honey";
+export type Material = "wood" | "stone" | "glass" | "brass";
+export const MATERIALS: Material[] = ["wood", "stone", "glass", "brass"];
+
+export type ItemCat = "seed" | "crop" | "flower" | "produce" | "material";
+export type ItemId = `seed:${CropId}` | `crop:${CropId}` | `flower:${FlowerColor}` | "honey" | Material;
 
 export interface ItemDef {
   name: string;
@@ -47,6 +50,11 @@ for (const c of CROP_IDS) {
 }
 for (const f of FLOWER_COLORS) ITEMS[`flower:${f}`] = { name: `${f[0].toUpperCase()}${f.slice(1)} flower`, cat: "flower", price: 2, pays: 1, grown: true };
 ITEMS.honey = { name: "Honey", cat: "produce", price: 20, pays: 14, grown: true };
+// wood and stone are gathered on your island (and bought back cheaply); glass and brass only come from the market
+ITEMS.wood = { name: "Wood", cat: "material", price: 4, pays: 2, grown: true };
+ITEMS.stone = { name: "Stone", cat: "material", price: 5, pays: 2, grown: true };
+ITEMS.glass = { name: "Glass", cat: "material", price: 12, pays: 5 };
+ITEMS.brass = { name: "Brass", cat: "material", price: 20, pays: 8 };
 
 export const ITEM_IDS = Object.keys(ITEMS) as ItemId[];
 export const isItem = (id: unknown): id is ItemId => typeof id === "string" && id in ITEMS;

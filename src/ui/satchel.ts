@@ -5,6 +5,7 @@ const SECTIONS: { cat: ItemCat; label: string }[] = [
   { cat: "crop", label: "Harvest" },
   { cat: "produce", label: "Goods" },
   { cat: "flower", label: "Flowers" },
+  { cat: "material", label: "Materials" },
   { cat: "seed", label: "Seeds" },
 ];
 
@@ -39,7 +40,7 @@ export class Satchel {
       if (!ids.length) return "";
       return `<h3>${label}</h3><ul class="items">${ids.map((id) => `<li>${ITEMS[id].name} <b>${count(s, id)}</b></li>`).join("")}</ul>`;
     }).join("");
-    document.getElementById("satchel-body")!.innerHTML = `${sections || "<p class=\"note\">Empty. Pick flowers, harvest crops, collect honey.</p>"}
+    document.getElementById("satchel-body")!.innerHTML = `${sections || "<p class=\"note\">Empty. Pick flowers, harvest crops, prune trees, collect honey.</p>"}
       <p class="note">${s.coins} coins · ${s.ink} drops of ink. Sell at the market crate, or at the Lantern Market through the portal.</p>`;
   }
 }

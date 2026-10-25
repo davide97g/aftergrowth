@@ -299,6 +299,22 @@ class Sound {
     for (let i = 0; i < 6; i++) this.tone(rand(500, 900), t + Math.random() * 0.5, 0.012, 0.06, "sine", undefined, rand(900, 1400));
   }
 
+  /** Pruning a tree: a soft wooden knock and a rustle. */
+  chop() {
+    const t = this.now;
+    if (t === null) return;
+    this.tone(190, t, 0.08, 0.12, "triangle", undefined, 120);
+    this.burst(t + 0.02, 0.25, 0.04, "bandpass", 2400, 0.8);
+  }
+
+  /** Chipping a rock: a bright click. */
+  chip() {
+    const t = this.now;
+    if (t === null) return;
+    this.burst(t, 0.05, 0.08, "highpass", 2500);
+    this.tone(900, t, 0.03, 0.08, "square", undefined, 600);
+  }
+
   /** Something picked up, harvested or bought. */
   pop() {
     const t = this.now;

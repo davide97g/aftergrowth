@@ -1,6 +1,7 @@
 import { ITEMS, type ItemId } from "../../shared/items";
 import { marketDay, msToNextDay } from "../../shared/prices";
 import { type Save, count, give, inkMax, take } from "../game/state";
+import { costLabel } from "../island/costs";
 import { type Offer, type Shop, buyPrice, gear, offerKey, offerName, sellPrice, todaysSpecial, trend } from "./shops";
 
 const ARROW = { [-1]: `<i class="down" title="Cheaper than yesterday">↓</i>`, 0: "", 1: `<i class="up" title="Dearer than yesterday">↑</i>` };
@@ -46,7 +47,7 @@ export class ShopPanel {
     } else if (d.act === "buy") {
       const o = shop.sells[Number(d.i)];
       const price = buyPrice(shop, o, s, day);
-      if (price === null) return;
+      if (price === null || ("gear" in o && !gear(s, o.gear).hasMats())) return;
       let n = Math.min(Number(d.n), Math.floor(s.coins / price));
       if ("ink" in o) n = Math.min(n, inkMax(s) - s.ink);
       if (n <= 0) return;
@@ -104,7 +105,7 @@ export class ShopPanel {
       if ("gear" in o) {
         const g = gear(s, o.gear);
         cards.push(g.next
-          ? `<p class="upgrade"><span><strong>${g.next.name}</strong> ${g.blurb}</span><button data-act="buy" data-i="${i}" data-n="1" ${s.coins >= price! ? "" : "disabled"}>Buy · ${price}c</button></p>`
+          ? `<p class="upgrade"><span><strong>${g.next.name}</strong> ${g.blurb}</span><button data-act="buy" data-i="${i}" data-n="1" ${s.coins >= price! && g.hasMats() ? "" : "disabled"}>Buy · ${costLabel(price!, g.mats)}</button></p>`
           : `<p class="upgrade"><span>Your <strong>${g.now}</strong> is the best there is.</span></p>`);
         return;
       }

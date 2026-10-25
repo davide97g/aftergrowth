@@ -18,7 +18,7 @@ import {
   footprint,
   newId,
 } from "./layout";
-import { PRICES, type Quote } from "./costs";
+import { type Quote, type Wallet, canPay, costLabel, kindCost } from "./costs";
 import { SHAPES, SHAPE_IDS, type ShapeId, clampInside, outline, radii } from "./shapes";
 
 const CATEGORIES: { id: Category; label: string }[] = [
@@ -56,8 +56,8 @@ export class IslandEditor {
   active = false;
   onDone: (layout: IslandLayout) => void = () => {};
   /** what the edit so far costs, and the coins there are to pay for it */
-  quote: () => Quote = () => ({ cost: 0, land: 0, shed: {} });
-  coins: () => number = () => 0;
+  quote: () => Quote = () => ({ cost: 0, mats: {}, land: 0, shed: {} });
+  wallet: () => Wallet = () => ({ coins: 0, bag: {}, shed: {}, land: 0 });
   onDiscard: () => void = () => {};
 
   constructor(private world: IslandWorld, private camera: Camera, private canvas: HTMLCanvasElement) {
@@ -276,7 +276,7 @@ export class IslandEditor {
     else if (d.act === "smaller") this.resize(-1);
     else if (d.act === "bigger") this.resize(1);
     else if (d.act === "delete") this.remove();
-    else if (d.act === "done" && this.quote().cost <= this.coins()) this.onDone(this.layout);
+    else if (d.act === "done" && canPay(this.quote(), this.wallet())) this.onDone(this.layout);
     else if (d.act === "discard") this.onDiscard();
   }
 
@@ -314,7 +314,7 @@ export class IslandEditor {
       const shed = this.quote().shed;
       body = `
         <div class="chips">${CATEGORIES.map((c) => `<button type="button" data-cat="${c.id}" aria-pressed="${this.category === c.id}">${c.label}</button>`).join("")}</div>
-        <div class="catalog">${kinds.map((k) => `<button type="button" data-add="${k}">${KINDS[k].label}<small>${shed[k] ? `${shed[k]} in shed` : `${PRICES[k]}c`}</small></button>`).join("")}</div>
+        <div class="catalog">${kinds.map((k) => `<button type="button" data-add="${k}">${KINDS[k].label}<small>${shed[k] ? `${shed[k]} in shed` : kindCost(k)}</small></button>`).join("")}</div>
         <p class="note">New things appear in the middle of the view. Drag them where you like. Removed things wait in your shed and come back free.</p>`;
     }
     this.panel.innerHTML = `
@@ -335,12 +335,17 @@ export class IslandEditor {
   private renderBill() {
     const el = document.getElementById("edit-bill");
     if (!el) return;
-    const { cost } = this.quote();
-    const coins = this.coins();
-    el.textContent = cost ? `Costs ${cost}c · you have ${coins}c` : `Free · you have ${coins}c`;
-    el.classList.toggle("short", cost > coins);
-    (this.panel.querySelector("[data-act=done]") as HTMLButtonElement).disabled = cost > coins;
+    const q = this.quote();
+    const w = this.wallet();
+    const ok = canPay(q, w);
+    const short = Object.entries(q.mats).filter(([m, n]) => n! > (w.bag[m] ?? 0)).map(([m, n]) => `${n! - (w.bag[m] ?? 0)} ${m}`);
+    el.textContent = q.cost || Object.keys(q.mats).length
+      ? `Costs ${costLabel(q.cost, q.mats)} · ${ok ? `you have ${w.coins}c` : `short of ${[...(q.cost > w.coins ? [`${q.cost - w.coins}c`] : []), ...short].join(", ")}`}`
+      : `Free · you have ${w.coins}c`;
+    el.classList.toggle("short", !ok);
+    (this.panel.querySelector("[data-act=done]") as HTMLButtonElement).disabled = !ok;
   }
+
 
   private renderSelection() {
     const el = document.getElementById("edit-selection");

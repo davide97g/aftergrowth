@@ -156,6 +156,9 @@ export function defaultHome(seed: number): IslandLayout {
   put("stone", -1.2, -3.6);
   put("pond", -5.24, -3.02);
   put("lantern", -2.0, 2.1);
+  // somewhere to chip stone from
+  put("rock_large", -7.6, 3.6, rand() * 6);
+  put("rock_tall", -4.0, -6.8, rand() * 6);
   for (const [r, u] of [[6.8, -4.6], [7.3, -4.3], [1.8, -2.3]]) put("pumpkin", r, u, rand() * 6, 0.9 + rand() * 0.3);
   const layout: IslandLayout = { v: 1, shape: "round", size: 1, underside: "rock", seed: seed % 100000, meadow: seed % 100000, objects };
   addTreeRing(layout, rand);

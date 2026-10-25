@@ -16,13 +16,13 @@ export const CANS = [
 export const BOTTLES = [
   { name: "Ink pot", holds: 12, price: 0 },
   { name: "Glass flask", holds: 20, price: 50 },
-  { name: "Crystal decanter", holds: 30, price: 140 },
+  { name: "Crystal decanter", holds: 30, price: 140, mats: { glass: 2 } },
 ] as const;
 /** Cauldron levels: drops of ink one brew makes. */
 export const CAULDRONS = [
   { name: "Iron cauldron", ink: 3, price: 0 },
   { name: "Copper cauldron", ink: 4, price: 80 },
-  { name: "Moon cauldron", ink: 5, price: 200 },
+  { name: "Moon cauldron", ink: 5, price: 200, mats: { brass: 3 } },
 ] as const;
 
 /** flowers one brew takes */
@@ -80,6 +80,8 @@ export interface Save {
   land: number;
   /** in-game day number, for the weather */
   day: number;
+  /** the game day each tree or rock was last pruned or chipped, by placed-object id */
+  gathered?: Record<string, number>;
   /** honey waiting in each beehive, by placed-object id */
   hives?: Record<string, number>;
   /** your island's shape and everything placed on it (made on first start) */

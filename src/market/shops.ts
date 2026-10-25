@@ -1,4 +1,4 @@
-import { CROP_IDS, FLOWER_COLORS, INK_PRICE, ITEMS, type ItemId } from "../../shared/items.ts";
+import { CROP_IDS, FLOWER_COLORS, INK_PRICE, ITEMS, type ItemId, MATERIALS, type Material } from "../../shared/items.ts";
 import { SALE, WANTED, type Special, special, swing } from "../../shared/prices.ts";
 import { BOTTLES, BREW_FLOWERS, CANS, CAULDRONS, type Save } from "../game/state.ts";
 import { PRICES } from "../island/costs.ts";
@@ -67,10 +67,9 @@ export const SHOPS: Shop[] = [
   },
   {
     id: "timber", name: "Timber & Stone", building: "shop_timber", daily: true, rate: 1,
-    keeper: { name: "Rowan", color: "#7a5a3c", greeting: "Mind the splinters." },
-    sells: [],
-    buys: [],
-    soon: "Wood, stone, glass and brass arrive with the next cart.",
+    keeper: { name: "Rowan", color: "#7a5a3c", greeting: "Wood and stone you can find at home. Glass and brass, only here." },
+    sells: MATERIALS.map((m): Offer => ({ item: m })),
+    buys: ["wood", "stone"],
   },
   {
     id: "scriptorium", name: "Scriptorium", building: "shop_scriptorium", daily: true, rate: 1,
@@ -136,20 +135,23 @@ export function trend(id: string, day: number): -1 | 0 | 1 {
 
 /** A tool's current level, the next one (if any), what it does and how to fit it. */
 export function gear(s: Save, id: GearId) {
-  if (id === "can") {
-    const next = CANS[s.can.level + 1];
-    return {
-      now: CANS[s.can.level].name, next, blurb: next ? `holds ${next.holds} pours and waters ${next.reach} plots in a row.` : "",
-      buy: () => {
+  const next: { name: string; price: number; mats?: Partial<Record<Material, number>> } | undefined =
+    id === "can" ? CANS[s.can.level + 1] : id === "bottle" ? BOTTLES[s.bottle + 1] : CAULDRONS[s.cauldron + 1];
+  const now = id === "can" ? CANS[s.can.level].name : id === "bottle" ? BOTTLES[s.bottle].name : CAULDRONS[s.cauldron].name;
+  const blurb = !next ? "" : id === "can" ? `holds ${CANS[s.can.level + 1].holds} pours and waters ${CANS[s.can.level + 1].reach} plots in a row.`
+    : id === "bottle" ? `holds ${BOTTLES[s.bottle + 1].holds} drops of ink.` : `brews ${BREW_FLOWERS} flowers into ${CAULDRONS[s.cauldron + 1].ink} drops.`;
+  const mats = next?.mats ?? {};
+  return {
+    now, next, blurb, mats,
+    /** enough materials for the next level (coins are checked by the price) */
+    hasMats: () => Object.entries(mats).every(([m, n]) => (s.bag[m as Material] ?? 0) >= n!),
+    buy: () => {
+      for (const [m, n] of Object.entries(mats)) s.bag[m as Material] = (s.bag[m as Material] ?? 0) - n!;
+      if (id === "can") {
         s.can.level++;
         s.can.water = CANS[s.can.level].holds;
-      },
-    };
-  }
-  if (id === "bottle") {
-    const next = BOTTLES[s.bottle + 1];
-    return { now: BOTTLES[s.bottle].name, next, blurb: next ? `holds ${next.holds} drops of ink.` : "", buy: () => void s.bottle++ };
-  }
-  const next = CAULDRONS[s.cauldron + 1];
-  return { now: CAULDRONS[s.cauldron].name, next, blurb: next ? `brews ${BREW_FLOWERS} flowers into ${next.ink} drops.` : "", buy: () => void s.cauldron++ };
+      } else if (id === "bottle") s.bottle++;
+      else s.cauldron++;
+    },
+  };
 }

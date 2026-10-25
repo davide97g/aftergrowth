@@ -228,7 +228,7 @@ All buttons.
 
 ## Build order
 
-Phase 1 is built (2026-10-25). Phases 2 to 6 are still to do.
+Phases 1 and 2 are built (2026-10-25). Phases 3 to 6 are still to do.
 
 Each phase is playable on its own and ends with checks in the browser and `npm run check`.
 

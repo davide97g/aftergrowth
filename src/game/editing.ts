@@ -1,5 +1,6 @@
 import type { CameraRig } from "../core/camera";
-import { quote } from "../island/costs";
+import { MATERIALS } from "../../shared/items";
+import { type Wallet, quote } from "../island/costs";
 import { IslandEditor } from "../island/editor";
 import { type IslandLayout, screen } from "../island/layout";
 import type { IslandWorld } from "../world/world";
@@ -15,15 +16,15 @@ export function setupEditor(o: {
   canEdit: boolean;
   /** true when something else has the screen (drawing, indoors) */
   blocked: () => boolean;
-  /** the coins, shed and paid-for land the edit is charged to */
-  wallet: { coins: number; shed: Record<string, number>; land: number };
+  /** the coins, materials, shed and paid-for land the edit is charged to */
+  wallet: Wallet;
   /** the layout as it was before editing */
   before: IslandLayout;
   save: () => void;
 }): IslandEditor {
   const editor = new IslandEditor(o.world, o.rig.camera, o.canvas);
   editor.quote = () => quote(o.before, o.world.layout, o.wallet);
-  editor.coins = () => o.wallet.coins;
+  editor.wallet = () => o.wallet;
   const button = document.getElementById("btn-edit")!;
   button.hidden = !o.canEdit;
   const open = () => {
@@ -42,6 +43,7 @@ export function setupEditor(o: {
     if (keep) {
       const q = quote(o.before, o.world.layout, o.wallet);
       o.wallet.coins -= q.cost;
+      for (const m of MATERIALS) if (q.mats[m]) o.wallet.bag[m] = (o.wallet.bag[m] ?? 0) - q.mats[m]!;
       o.wallet.shed = q.shed;
       o.wallet.land = q.land;
       o.save();

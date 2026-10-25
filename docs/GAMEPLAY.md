@@ -102,10 +102,11 @@ Every system and its numbers. Values live in code; the file is named next to eac
   Nature, Garden, Decor, Buildings). Drag to move, Q/E turn, −/+ size, Del remove.
 - Essentials can move but not be removed: cottage, farm field, cauldron, market, mailbox,
   3 carving stones, pond. Done pays, saves and reloads; Discard reloads.
-- Costs (`island/costs.ts`): each new object costs its price (paths 3c up to the windmill at 150c).
+- Costs (`island/costs.ts`): each new object costs its price, and built things also take materials
+  (see Materials).
   Removing puts it in your shed; placing that kind again takes it from the shed for free. Moving,
   turning, scaling, reshaping and a new meadow are free. Growing the island past the largest size
-  you've paid for costs 25c per 0.05×. Done is disabled while the bill is more than your coins.
+  you've paid for costs 25c per 0.05×. Done is disabled while you can't pay the bill.
 
 ## Lantern Market (`market/`, design in `docs/MARKET.md`)
 
@@ -115,17 +116,27 @@ Every system and its numbers. Values live in code; the file is named next to eac
 | Shop | Keeper | Sells | Buys |
 |---|---|---|---|
 | Seed & Sprout | Fern | all six seeds, 8 tree saplings (go to your shed) | crops |
-| The Inkwell | Odile | ink (5c a drop), flowers (2c), Glass flask, Crystal decanter | flowers (1c), ink (2c) |
+| The Inkwell | Odile | ink (5c a drop), flowers (2c), Glass flask, Crystal decanter (+2 glass) | flowers (1c), ink (2c) |
 | Menagerie | Bramble | animals soon | honey |
-| Timber & Stone | Rowan | materials soon | |
+| Timber & Stone | Rowan | wood 4c, stone 5c, glass 12c, brass 20c | wood, stone (2c) |
 | Scriptorium | Hazel | scrolls and charms soon | |
-| Outfitter | Tilly | Copper can, Copper and Moon cauldrons | |
+| Outfitter | Tilly | Copper can, Copper and Moon (+3 brass) cauldrons | |
 
 - **Daily prices:** a market day is a real UTC day, the same for everyone. Each item's price moves
   up to ±15% a day (↑/↓ against yesterday). Each shop has one special: a sale (0.6×) on something
   it sells, or a wanted item it pays 1.5× for.
 - The stall row and notice board are there but open in a later update (player stalls).
-- **Satchel (I):** everything you carry, by kind (harvest, goods, flowers, seeds).
+- **Satchel (I):** everything you carry, by kind (harvest, goods, flowers, materials, seeds).
+
+## Materials (`farm/gather.ts`, `island/costs.ts`)
+
+- On your own island, F at a tree **prunes** it (+1 wood) and at a boulder or standing rock **chips**
+  it (+1 stone), once per game day each. New islands start with two rocks.
+- Glass and brass only come from Timber & Stone.
+- Built things in the editor take materials as well as coins (`BUILD`), for example: greenhouse
+  60c + 6 glass + 4 wood, windmill 80c + 8 wood + 2 brass, wishing well 30c + 6 stone, fences and
+  paths 1 wood or stone, lanterns 1 glass, lamp posts 1 brass. The bill names what you're short of.
+- Things from the shed stay free.
 
 ## Multiplayer (`net/`, `server/`)
 
