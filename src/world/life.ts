@@ -181,6 +181,8 @@ export class Life {
   private smokeTimer = 0;
   /** wind strength multiplier; spells raise it */
   windBoost = 1;
+  /** the weather's wind, which bends the chimney smoke */
+  wind = 1;
 
   private constructor(scene: Scene, private world: World) {
     const pts = (n: number, yMin: number, yMax: number) => {
@@ -276,8 +278,10 @@ export class Life {
 
     this.smokeTimer -= dt;
     if (this.smokeTimer <= 0) {
-      this.smokeTimer = 0.7;
-      this.smoke.emit(this.world.smokeOrigin, new Vector3(0.25, 0.9, -0.1));
+      // a fire is lit in the evening and early morning: more smoke then
+      this.smokeTimer = 0.75 - mood.glow * 0.35;
+      const w = this.wind * this.windBoost;
+      this.smoke.emit(this.world.smokeOrigin, new Vector3(0.2 + (w - 1) * 0.6, 0.9 - Math.min(0.4, (w - 1) * 0.3), -0.1 - (w - 1) * 0.2));
     }
     this.smoke.update(dt, 4.5, 0.45);
     this.petals.update(dt, 0.9, 0.06);

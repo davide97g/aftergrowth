@@ -110,6 +110,22 @@ Every system and its numbers. Values live in code; the file is named next to eac
 - Rain waters every plot on your own island; a daytime shower can end in a rainbow.
 - Birds hide at night and in the rain; butterflies stay home in the rain.
 
+## The living island (`world/atmosphere.ts`)
+
+- Rain soaks the ground (grass, soil and paths darken) and fills puddles in hollows of the meadow;
+  they ripple in the rain and dry up over a few game hours, the smallest first. Stepping in one
+  splashes.
+- Footsteps sound like what they land on: grass, soil (the farm), planks (the rope bridge, wooden
+  paths), stone (stone paths, the market, Aetherhold), water (a puddle).
+- Walking through crops makes them sway and rustle.
+- Dawn (about 4–9) brings low mist over the meadow, thicker after a wet night, blown away by wind;
+  dew glints in the grass on a sunny morning and after rain.
+- Leaves fall from the trees: often in autumn (blossom islands drop pink petals), now and then
+  elsewhere, many on windy days. They lie on the grass a while, and walking through kicks them up.
+- Bees fly from each beehive to flowers nearby and back by day, and hum when you're close.
+- The chimney smokes more in the evening, and the smoke leans with the wind.
+- Night: frogs croak near the pond, an owl hoots now and then.
+
 ## The cottage (`game/cottage.ts`, `house/`)
 
 - F at the door goes inside (your own island only).

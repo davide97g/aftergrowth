@@ -257,6 +257,10 @@ Six pieces, one after another:
   small state machine (follow, wander, sniff, chase, sit, nap, watch, lap, shelter, fire, play,
   greet). It sleeps on the cottage rug while you're in, and the host's familiar keeps visitors company
   (it rides in the published island snapshot; the hub checks it).
+- **The island reacts** (`world/atmosphere.ts`): wet ground darkens through the shared toon
+  materials; puddles are seeded flat hollows with their own ripple shader; dawn mist is a few soft
+  flat wisps; dew is a point cloud of glints; leaves are one instanced mesh from every tree's canopy
+  box; bees shuttle between hives and flowers. Footsteps sound like what they land on.
 
 ## How things were checked
 

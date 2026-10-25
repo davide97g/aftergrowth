@@ -19,8 +19,13 @@ export interface Ambience {
   fire: number;
   /** the market's bustle, 0..1 */
   crowd: number;
+  /** beehives humming nearby, 0..1 */
+  bees: number;
   inside: boolean;
 }
+
+/** what a footstep lands on (see world/atmosphere.ts) */
+export type Step = "grass" | "soil" | "wood" | "stone" | "water";
 
 type SpellSound = "growth" | "water" | "wind" | "light" | "flame" | "rainbow" | "bloom" | "fireflies" | "steam" | "fizzle";
 
@@ -38,8 +43,9 @@ class Sound {
   private beds: Record<"wind" | "rain" | "water" | "fire" | "pen" | "crowd", { gain: GainNode; filter: BiquadFilterNode }> | null = null;
   private windFilter = 0;
   private penLevel = 0;
-  private next = { bird: 2, cricket: 1, crackle: 0, drop: 0, voice: 1 };
-  private amb: Ambience = { wind: 0, rain: 0, day: 1, water: 0, fire: 0, crowd: 0, inside: false };
+  private next = { bird: 2, cricket: 1, crackle: 0, drop: 0, voice: 1, croak: 3, owl: 20 };
+  private amb: Ambience = { wind: 0, rain: 0, day: 1, water: 0, fire: 0, crowd: 0, bees: 0, inside: false };
+  private beesHum: GainNode | null = null;
   muted = false;
   onMute: (muted: boolean) => void = () => {};
   /** the theme song plays (N toggles it) */
@@ -160,6 +166,26 @@ class Sound {
       pen: bed("bandpass", 3200, 1.4, this.master),
       crowd: bed("bandpass", 520, 1.1),
     };
+    // the bees' hum: two buzzy, slightly detuned saws under a low-pass, wobbling in loudness
+    this.beesHum = ctx.createGain();
+    this.beesHum.gain.value = 0;
+    const humFilter = ctx.createBiquadFilter();
+    humFilter.type = "lowpass";
+    humFilter.frequency.value = 700;
+    humFilter.connect(this.beesHum).connect(this.outside);
+    for (const f of [208, 213.5]) {
+      const o = ctx.createOscillator();
+      o.type = "sawtooth";
+      o.frequency.value = f;
+      const wob = ctx.createOscillator();
+      wob.frequency.value = rand(5, 8);
+      const depth = ctx.createGain();
+      depth.gain.value = 6;
+      wob.connect(depth).connect(o.frequency);
+      o.connect(humFilter);
+      o.start();
+      wob.start();
+    }
     if (this.music) this.playSong();
   }
 
@@ -188,6 +214,7 @@ class Sound {
     // the pen scratches only while it moves
     this.penLevel = Math.max(0, this.penLevel - dt * 6);
     this.beds.pen.gain.gain.setTargetAtTime(this.penLevel * 0.05, t, 0.03);
+    this.beesHum?.gain.setTargetAtTime(amb.bees * amb.bees * 0.012 * (0.7 + 0.3 * Math.sin(this.windFilter * 3.1)) * indoor, t, 0.3);
 
     const n = this.next;
     n.bird -= dt;
@@ -195,6 +222,17 @@ class Sound {
     n.crackle -= dt;
     n.drop -= dt;
     n.voice -= dt;
+    n.croak -= dt;
+    n.owl -= dt;
+    // frogs by the pond at night, and an owl somewhere now and then
+    if (n.croak <= 0) {
+      n.croak = rand(1.2, 4);
+      if (amb.day < 0.4 && amb.water > 0.05 && amb.rain < 0.6 && !amb.inside) this.croak(amb.water);
+    }
+    if (n.owl <= 0) {
+      n.owl = rand(25, 60);
+      if (amb.day < 0.2 && amb.rain < 0.3 && !amb.inside) this.owl();
+    }
     if (n.voice <= 0) {
       n.voice = rand(0.4, 1.6);
       if (amb.crowd > 0.1 && !amb.inside) this.voice(amb.crowd);
@@ -305,12 +343,53 @@ class Sound {
     this.tone(rand(1800, 3200), t, 0.006 * level, 0.03, "sine", this.outside, rand(900, 1400));
   }
 
+  private croak(level: number) {
+    const t = this.now;
+    if (t === null) return;
+    const f = rand(150, 230);
+    const n = 1 + Math.floor(Math.random() * 3);
+    const band = this.ctx!.createBiquadFilter();
+    band.type = "bandpass";
+    band.frequency.value = 600;
+    band.Q.value = 3;
+    band.connect(this.outside);
+    for (let i = 0; i < n; i++) this.tone(f, t + i * 0.16, 0.05 * Math.min(1, level * 2), 0.1, "square", band, f * 0.8);
+  }
+
+  private owl() {
+    const t = this.now;
+    if (t === null) return;
+    this.tone(390, t, 0.025, 0.35, "sine", this.outside, 340);
+    this.tone(400, t + 0.55, 0.03, 0.6, "sine", this.outside, 330);
+  }
+
   // ---------- one-shots ----------
 
-  footstep(running: boolean) {
+  /** A footstep: soft on grass, dull on soil, a knock on planks, a tap on stone, a splash in a puddle. */
+  footstep(running: boolean, on: Step = "grass") {
     const t = this.now;
     if (t === null || this.amb.inside) return;
-    this.burst(t, running ? 0.06 : 0.08, running ? 0.05 : 0.035, "bandpass", rand(600, 1000), 1.2);
+    const k = running ? 1.3 : 1;
+    switch (on) {
+      case "soil": return this.burst(t, 0.09, 0.04 * k, "lowpass", rand(350, 550), 1);
+      case "wood":
+        this.tone(rand(170, 220), t, 0.05 * k, 0.07, "triangle", undefined, 130);
+        return this.burst(t, 0.04, 0.025 * k, "bandpass", 1400, 1.5);
+      case "stone":
+        this.burst(t, 0.035, 0.05 * k, "highpass", rand(2000, 3200), 1);
+        return this.tone(rand(700, 900), t, 0.008 * k, 0.04, "sine");
+      case "water":
+        this.burst(t, 0.18, 0.06 * k, "bandpass", 1200, 1.2, undefined, 500);
+        for (let i = 0; i < 3; i++) this.tone(rand(900, 1600), t + 0.03 + Math.random() * 0.12, 0.012, 0.05, "sine", undefined, rand(1700, 2400));
+      default: this.burst(t, running ? 0.06 : 0.08, running ? 0.05 : 0.035, "bandpass", rand(600, 1000), 1.2);
+    }
+  }
+
+  /** Brushing through leaves and stalks. */
+  rustle() {
+    const t = this.now;
+    if (t === null) return;
+    this.burst(t, 0.22, 0.03, "highpass", rand(2500, 4000), 0.7);
   }
 
   /** The dip pen on paper; `pixels` is how far it just moved. */

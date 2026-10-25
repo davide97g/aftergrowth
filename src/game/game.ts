@@ -27,6 +27,7 @@ import { WorldMap } from "../ui/map";
 import { Satchel } from "../ui/satchel";
 import { Birds } from "../world/birds";
 import { FAMILIAR_KINDS, Familiar, type FamiliarKind } from "../world/familiar";
+import { Atmosphere } from "../world/atmosphere";
 import { sampleMood } from "../world/daycycle";
 import { Life } from "../world/life";
 import { Weather } from "../world/weather";
@@ -96,7 +97,8 @@ export async function startGame(account: Account) {
   /** the commons, the market and the kingdom belong to everyone: no farm, no carving stones */
   const everyone = commons || market || kingdom;
   const mine = !visiting && !everyone;
-  setTheme(commons ? "blossom" : market || kingdom ? "meadow" : host ? host.theme : me.theme);
+  const theme = commons ? "blossom" : market || kingdom ? "meadow" : host ? host.theme : me.theme;
+  setTheme(theme);
   const state = load(HOME.plots, HOME.stones, me.id, saved);
   const layout = layoutFor(here, me, state);
   // the editor works on the world's copy, so Discard (or a timed save mid-edit) never keeps half an edit
@@ -115,9 +117,13 @@ export async function startGame(account: Account) {
   witch.root.rotation.y = Math.PI / 4;
   scene.add(witch.root);
   const life = await Life.create(scene, world);
+  const atmos = new Atmosphere(scene, world, theme);
   witch.onFootstep = (at, running) => {
-    life.footstep(at, running);
-    sound.footstep(running);
+    const on = atmos.surface(at);
+    if (on === "water") atmos.splash(at);
+    else life.footstep(at, running);
+    sound.footstep(running, on);
+    farm.brush(at);
   };
   // your familiar comes everywhere with you, except to a friend's island, where theirs keeps you company
   const familiarOf = () => host
@@ -396,7 +402,9 @@ export async function startGame(account: Account) {
     garden.update(dt, hours, mood);
     gather.update(dt);
     animals.update(dt, editor.active);
+    life.wind = weather.windStrength;
     life.update(dt, mood, witch.position);
+    atmos.update(dt, hours, clock.hour, mood, weather.raining, weather.windStrength, witch.position);
     idle = witch.speed > 0.2 || magic.drawing ? 0 : idle + dt;
     if (familiar) {
       familiar.away = cottage.inside || travel.active;
@@ -429,6 +437,7 @@ export async function startGame(account: Account) {
         return [p.x, p.z] as Pt;
       }), 5),
       crowd: market ? 1 : realm && !cottage.inside ? realm.crowd(witch.position) : 0,
+      bees: cottage.inside ? 0 : atmos.hum,
       inside: cottage.inside,
     });
 
@@ -463,5 +472,5 @@ export async function startGame(account: Account) {
   if (market) hud.toast("Lantern Market", "Six shops, new prices every day. Talk to a keeper at their counter.");
   if (kingdom) hud.toast("Aetherhold", "The royal city, seat of magic. Climb to the palace; the tavern, the Arcanum and the spell range are on the way.");
   // handy in the browser console while developing
-  Object.assign(window, { __game: { familiar: () => familiar, clock, witch, world, scene, camera: rig.camera, state, net, social, weather, sound, magic, satchel, shops, map } });
+  Object.assign(window, { __game: { familiar: () => familiar, atmos, clock, witch, world, scene, camera: rig.camera, state, net, social, weather, sound, magic, satchel, shops, map } });
 }

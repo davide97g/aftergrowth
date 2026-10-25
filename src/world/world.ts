@@ -175,7 +175,8 @@ export class IslandWorld implements World {
   protected channel: Pt[] | null = null;
   protected islet = new Vector3();
   protected isletR: number[] = [];
-  protected bridge: { b0: Vector3; b1: Vector3 } = { b0: new Vector3(), b1: new Vector3() };
+  /** the rope bridge to the portal islet, end to end */
+  bridge: { b0: Vector3; b1: Vector3 } = { b0: new Vector3(), b1: new Vector3() };
   protected portalGroup: Group;
   /** the portal islet sits off the edge this way */
   protected isletDir = ISLET_DIR.clone();

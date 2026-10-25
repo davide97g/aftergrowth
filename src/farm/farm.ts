@@ -21,7 +21,7 @@ function stageOf(p: Plot): Stage {
   return k < 0.55 ? "sprout" : "young";
 }
 
-interface PlotView { root: Group; wet: Mesh; stage: Stage | null; crop: CropId | null; pop: number }
+interface PlotView { root: Group; wet: Mesh; stage: Stage | null; crop: CropId | null; pop: number; rustle: number }
 
 /** The twelve plots: state lives in the save, this draws it and offers the farming actions. */
 export class Farm {
@@ -63,9 +63,21 @@ export class Farm {
       wet.renderOrder = 2;
       root.add(wet);
       scene.add(root);
-      farm.views.push({ root, wet, stage: null, crop: null, pop: 1 });
+      farm.views.push({ root, wet, stage: null, crop: null, pop: 1, rustle: 0 });
     }
     return farm;
+  }
+
+  /** A footstep at `at`: crops brushed past sway and rustle. */
+  brush(at: Vector3) {
+    let any = false;
+    this.views.forEach((v, i) => {
+      const p = this.state.plots[i];
+      if (!p || (!p.crop && !p.locked) || Math.hypot(v.root.position.x - at.x, v.root.position.z - at.z) > 0.75) return;
+      v.rustle = 1;
+      any = true;
+    });
+    if (any) sound.rustle();
   }
 
   /** Advance growth by `hours` of game time. */
@@ -99,6 +111,9 @@ export class Farm {
     const k = v.pop;
     const s = 1 + Math.sin(k * Math.PI) * 0.35 * (1 - k) + (stage === "ready" ? Math.sin(this.time * 2 + i) * 0.03 : 0);
     v.root.scale.set(s, k < 1 ? 0.2 + 0.8 * k : s, s);
+    v.rustle = Math.max(0, v.rustle - dt * 1.6);
+    v.root.rotation.x = Math.sin(this.time * 17 + i) * 0.12 * v.rustle;
+    v.root.rotation.z = Math.cos(this.time * 13 + i) * 0.1 * v.rustle;
   }
 
   private nearestPlot(near: Vector3) {
