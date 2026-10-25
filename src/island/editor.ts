@@ -27,7 +27,10 @@ const CATEGORIES: { id: Category; label: string }[] = [
   { id: "garden", label: "Garden" },
   { id: "decor", label: "Decor" },
   { id: "home", label: "Buildings" },
+  { id: "animals", label: "Animals" },
 ];
+/** most animals one island holds */
+export const ANIMAL_MAX = 16;
 const UNDERSIDE_NAMES: Record<Underside, string> = { rock: "Rocky spires", roots: "Hanging roots", crystal: "Crystals" };
 const ROT_STEP = Math.PI / 12;
 
@@ -207,6 +210,9 @@ export class IslandEditor {
   }
 
   private async add(kind: Kind) {
+    // animals come from the Menagerie, through the shed
+    if ((KINDS[kind] as KindDef).shopOnly && !this.quote().shed[kind]) return;
+    if (KINDS[kind].cat === "animals" && this.layout.objects.filter((o) => KINDS[o.kind].cat === "animals").length >= ANIMAL_MAX) return;
     const [x, z] = clampInside(coast(this.layout), this.focus.x, this.focus.z, 0.8);
     const p: Placed = { id: newId(kind), kind, x, z, rot: Math.PI / 4, scale: 1 };
     this.layout.objects.push(p);
@@ -314,7 +320,10 @@ export class IslandEditor {
       const shed = this.quote().shed;
       body = `
         <div class="chips">${CATEGORIES.map((c) => `<button type="button" data-cat="${c.id}" aria-pressed="${this.category === c.id}">${c.label}</button>`).join("")}</div>
-        <div class="catalog">${kinds.map((k) => `<button type="button" data-add="${k}">${KINDS[k].label}<small>${shed[k] ? `${shed[k]} in shed` : kindCost(k)}</small></button>`).join("")}</div>
+        <div class="catalog">${kinds.map((k) => {
+          const shopOnly = (KINDS[k] as KindDef).shopOnly;
+          return `<button type="button" data-add="${k}" ${shopOnly && !shed[k] ? "disabled" : ""}>${KINDS[k].label}<small>${shed[k] ? `${shed[k]} in shed` : shopOnly ? "from the Menagerie" : kindCost(k)}</small></button>`;
+        }).join("")}</div>
         <p class="note">New things appear in the middle of the view. Drag them where you like. Removed things wait in your shed and come back free.</p>`;
     }
     this.panel.innerHTML = `

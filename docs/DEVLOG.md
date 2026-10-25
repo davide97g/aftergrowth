@@ -154,6 +154,17 @@ multiplayer (live and async); magic drawn with rules, like *Witch Hat Atelier*.
   flowers → ink → charms → coins.
 - Checked by drawing real glyphs with the mouse in a headless browser (a scripted wind sigil and seal).
 
+## 14. Animals (market phase 4)
+
+- Chickens, ducks, sheep and goats (modelled in Blender by `build_animals.py`, each with a `head`
+  node so the game can peck and nod), bought at the Menagerie and placed from the editor's new
+  Animals tab. They wander around their spot, hop when petted, and droop when hungry.
+- Troughs and a pure `morning()` rule (`farm/livestock.ts`, tested): each animal eats a meal it likes
+  from a trough in reach; fed animals make goods on their schedule; ducks need the pond.
+- Visitors can feed your animals through a new `feed` deed.
+- Shops now sell crops (as feed) at twice what they pay, and nothing players grow ever goes on sale,
+  so no special can be played against another shop's. The price test checks across all shops.
+
 ## How things were checked
 
 Every step was checked in a headless browser (screenshots, scripted clicks, keyboard and mouse

@@ -101,6 +101,8 @@ One WebSocket on `/net`, JSON messages.
 - `tools/blender/build_props.py`: Kenney models restyled (material name → token, with per-model
   overrides), plus everything modelled from primitives (buildings, trees, flowers, garden objects,
   crystals, roots). Output: `public/assets/props/*.glb`.
+- `tools/blender/build_animals.py`: chicken, duck, sheep, goat (a `body` with a `head` child pivoting
+  at the neck) and the trough (with a `feed` mesh the game shows while it has meals).
 - `tools/blender/build_market.py`: the market's six shop buildings, stall booth, fountain and notice
   board. Each shop has an empty named `keeper` where its keeper stands.
 - `tools/blender/build_chibi.py`: the witch, one node per moving part with its pivot at the joint.

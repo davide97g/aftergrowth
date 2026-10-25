@@ -6,6 +6,7 @@ import { setTheme } from "../core/palette";
 import { Farm } from "../farm/farm";
 import { Flowers } from "../farm/flowers";
 import { Garden } from "../farm/garden";
+import { Animals } from "../farm/animals";
 import { Gather } from "../farm/gather";
 import { Workshop } from "../farm/workshop";
 import { Market } from "../market/market";
@@ -145,6 +146,10 @@ export async function startGame() {
   const garden = new Garden(scene, world, state, { onChange: changed, sit: rest.sitAt, owner, mine });
   rest.onStand = () => (garden.riding = null);
   const gather = new Gather(world, state, changed, mine);
+  const animals = new Animals(scene, world, state, {
+    onChange: changed, mine, owner,
+    feedVisit: host ? (trough, crop) => net.send({ t: "feed", island: host.id, trough, crop }) : null,
+  });
 
   const persist = () => {
     state.hour = clock.hour;
@@ -192,7 +197,7 @@ export async function startGame() {
   // ---------- what F does outside ----------
   const outdoors = new Interactions(rig.camera);
   for (const p of [rest.action, garden.fill, garden.seat, garden.hive, garden.sign, cottage.door, workshop.cauldron, workshop.market,
-    workshop.pondside, ...(bazaar ? [bazaar.action, bazaar.board] : []), magic.contraptions.action, farm.action, flowers.action, gather.action, social.mailbox, social.portal(world.portalPos)]) outdoors.add(p);
+    workshop.pondside, ...(bazaar ? [bazaar.action, bazaar.board] : []), magic.contraptions.action, farm.action, flowers.action, gather.action, animals.action, animals.trough, social.mailbox, social.portal(world.portalPos)]) outdoors.add(p);
   outdoors.onAct = () => witch.react("gesture");
   input.onPick = (p) => (cottage.inside ? cottage.indoors : outdoors).clicked(p);
 
@@ -251,6 +256,7 @@ export async function startGame() {
     // everything else that lives
     garden.update(dt, hours, mood);
     gather.update(dt);
+    animals.update(dt, editor.active);
     life.update(dt, mood, witch.position);
     magic.update(dt, hours, mood);
     farm.update(dt, hours);

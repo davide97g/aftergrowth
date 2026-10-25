@@ -10,7 +10,8 @@ export const PRICES: Record<Kind, number> = {
   cottage: 0, farm: 0, cauldron: 0, market: 0, mailbox: 0, stone: 0, pond: 0,
   greenhouse: 60, windmill: 80, well: 30, gazebo: 50, solar_leaf: 15, tent: 25,
   beehive: 30, scarecrow: 15, rain_barrel: 15, flower_bed: 8, vine_arch: 10, hedge: 8,
-  fence_planks: 2, fence_gate: 4, path_stone: 1, path_wood: 2, pot_small: 6,
+  fence_planks: 2, fence_gate: 4, path_stone: 1, path_wood: 2, pot_small: 6, trough: 15,
+  chicken: 0, duck: 0, sheep: 0, goat: 0,
   tree_round_0: 12, tree_round_2: 18, tree_cypress_0: 12, tree_cypress_2: 16, tree_oak: 15, tree_fat: 15,
   tree_detailed: 15, pine_round: 12, pine_small: 8,
   bush_large: 6, rock_large: 8, rock_tall: 8, crystal: 25, mushroom_red: 4, mushroom_tan: 4,
@@ -30,7 +31,7 @@ export const BUILD: Partial<Record<Kind, Partial<Record<Material, number>>>> = {
   lantern: { glass: 1 }, lamp_post: { brass: 1 }, crystal_lamp: { glass: 1 }, campfire: { stone: 2 },
   bench: { wood: 3 }, swing: { wood: 4 }, log: { wood: 2 }, signpost: { wood: 2 },
   statue_obelisk: { stone: 4 }, statue_ring: { stone: 6 }, statue_column: { stone: 4 },
-  log_stack: { wood: 4 }, canoe: { wood: 4 }, fence: { wood: 1 }, pot: { stone: 1 },
+  log_stack: { wood: 4 }, canoe: { wood: 4 }, fence: { wood: 1 }, pot: { stone: 1 }, trough: { wood: 2 },
 };
 
 /** Growing the island costs this much per step of size beyond the largest you've paid for. */

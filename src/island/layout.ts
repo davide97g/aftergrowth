@@ -3,9 +3,9 @@ import { type Pt, SHAPE_IDS, type ShapeId, clampInside, radii, radiusAt } from "
 export type Underside = "rock" | "roots" | "crystal";
 export const UNDERSIDES: Underside[] = ["rock", "roots", "crystal"];
 /** "market" things only stand on the Lantern Market; the editor never offers them */
-export type Category = "home" | "trees" | "nature" | "garden" | "decor" | "market";
+export type Category = "home" | "trees" | "nature" | "garden" | "decor" | "animals" | "market";
 /** what a placed object does when the witch is near it */
-export type Use = "fill" | "sit" | "swing" | "hive" | "scare" | "sign";
+export type Use = "fill" | "sit" | "swing" | "hive" | "scare" | "sign" | "trough";
 
 export interface KindDef {
   label: string;
@@ -18,6 +18,8 @@ export interface KindDef {
   essential?: boolean;
   count?: number;
   use?: Use;
+  /** only bought at a shop (into the shed), never in the editor */
+  shopOnly?: boolean;
 }
 
 export const KINDS = {
@@ -45,6 +47,11 @@ export const KINDS = {
   path_stone: { label: "Stone path", cat: "garden", model: "path_stone", solid: 0 },
   path_wood: { label: "Wooden path", cat: "garden", model: "path_wood", solid: 0 },
   pot_small: { label: "Small planter", cat: "garden", model: "pot_small", solid: 0.25 },
+  trough: { label: "Feed trough", cat: "garden", model: "trough", solid: 0.45, use: "trough" },
+  chicken: { label: "Chicken", cat: "animals", model: "chicken", solid: 0, shopOnly: true },
+  duck: { label: "Duck", cat: "animals", model: "duck", solid: 0, shopOnly: true },
+  sheep: { label: "Sheep", cat: "animals", model: "sheep", solid: 0, shopOnly: true },
+  goat: { label: "Goat", cat: "animals", model: "goat", solid: 0, shopOnly: true },
   tree_round_0: { label: "Round tree", cat: "trees", model: "tree_round_0", solid: 0.35 },
   tree_round_2: { label: "Big round tree", cat: "trees", model: "tree_round_2", solid: 0.4 },
   tree_cypress_0: { label: "Cypress", cat: "trees", model: "tree_cypress_0", solid: 0.35 },

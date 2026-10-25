@@ -1,6 +1,7 @@
 import { Camera, Mesh, Object3D, Scene, Vector3 } from "three";
 import { type AtlasEntry, type Deed, type Gift, HUB_ID, type IslandSnap, MARKET_ID, PHRASES, type Pose, type Profile } from "../../shared/protocol";
 import type { Action } from "../game/interact";
+import { addMeal } from "../farm/livestock";
 import { CROPS, CROP_IDS, type CropId, FLOWER_COLORS, type FlowerColor, type ItemId, type Save, count, give, take } from "../game/state";
 import type { Hud } from "../ui/hud";
 import { Witch } from "../player/witch";
@@ -184,11 +185,15 @@ export class Social {
     const watered = new Set<string>();
     let plots = 0;
     const gifts: string[] = [];
+    const fed = new Set<string>();
     for (const d of deeds) {
       if (d.kind === "water") {
         if (this.state.plots[d.plot]) this.state.plots[d.plot].wet = 10;
         watered.add(d.by);
         plots++;
+      } else if (d.kind === "feed") {
+        if (d.crop in CROPS) addMeal(this.state.herd, d.trough, d.crop as CropId);
+        fed.add(d.by);
       } else {
         (this.state.mailbox ??= []).push(d.gift);
         gifts.push(d.by);
@@ -196,6 +201,7 @@ export class Social {
     }
     const parts: string[] = [];
     if (plots) parts.push(`${[...watered].join(", ")} watered ${plots} ${plots === 1 ? "crop" : "crops"}`);
+    if (fed.size) parts.push(`${[...fed].join(", ")} fed your animals`);
     if (gifts.length) parts.push(`${gifts.length} ${gifts.length === 1 ? "gift" : "gifts"} in the mailbox from ${[...new Set(gifts)].join(", ")}`);
     this.hud.toast(live ? "A visitor helped" : "While you were away", parts.join(" · "));
   }

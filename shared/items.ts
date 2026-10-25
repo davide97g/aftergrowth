@@ -46,7 +46,8 @@ const CHARMS: Record<CharmSpell, { name: string; price: number }> = {
 export const CHARM_SPELLS = Object.keys(CHARMS) as CharmSpell[];
 
 export type ItemCat = "seed" | "crop" | "flower" | "produce" | "material" | "charm";
-export type ItemId = `seed:${CropId}` | `crop:${CropId}` | `flower:${FlowerColor}` | "honey" | Material | `charm:${CharmSpell}` | "charm_blank";
+export type Produce = "honey" | "egg" | "duck_egg" | "wool" | "milk";
+export type ItemId = `seed:${CropId}` | `crop:${CropId}` | `flower:${FlowerColor}` | Produce | Material | `charm:${CharmSpell}` | "charm_blank";
 
 export interface ItemDef {
   name: string;
@@ -61,10 +62,15 @@ export const ITEMS = {} as Record<ItemId, ItemDef>;
 for (const c of CROP_IDS) {
   const d = CROPS[c];
   ITEMS[`seed:${c}`] = { name: `${d.name} seeds`, cat: "seed", price: d.seedPrice, pays: Math.ceil(d.seedPrice / 2) };
-  ITEMS[`crop:${c}`] = { name: d.name, cat: "crop", price: Math.round(d.sellPrice * 1.5), pays: d.sellPrice, grown: true };
+  // shops sell crops (as feed) at twice what they pay: growing your own is always the better deal
+  ITEMS[`crop:${c}`] = { name: d.name, cat: "crop", price: d.sellPrice * 2, pays: d.sellPrice, grown: true };
 }
 for (const f of FLOWER_COLORS) ITEMS[`flower:${f}`] = { name: `${f[0].toUpperCase()}${f.slice(1)} flower`, cat: "flower", price: 2, pays: 1, grown: true };
 ITEMS.honey = { name: "Honey", cat: "produce", price: 20, pays: 14, grown: true };
+ITEMS.egg = { name: "Egg", cat: "produce", price: 9, pays: 6, grown: true };
+ITEMS.duck_egg = { name: "Duck egg", cat: "produce", price: 12, pays: 8, grown: true };
+ITEMS.wool = { name: "Wool", cat: "produce", price: 27, pays: 18, grown: true };
+ITEMS.milk = { name: "Milk", cat: "produce", price: 21, pays: 14, grown: true };
 // wood and stone are gathered on your island (and bought back cheaply); glass and brass only come from the market
 ITEMS.wood = { name: "Wood", cat: "material", price: 4, pays: 2, grown: true };
 ITEMS.stone = { name: "Stone", cat: "material", price: 5, pays: 2, grown: true };

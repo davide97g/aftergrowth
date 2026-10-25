@@ -567,6 +567,7 @@ body.drawing .say-wrap { display: none; }
 #editor .chips button:disabled { opacity: 0.4; cursor: default; }
 #editor .catalog { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; margin-top: 8px; }
 #editor .catalog button { border-radius: 12px; text-align: left; }
+#editor .catalog button:disabled { opacity: 0.45; cursor: default; }
 #editor .catalog small { display: block; font: 0.78rem var(--f-body); opacity: 0.7; }
 #editor .end button:disabled { opacity: 0.4; cursor: default; }
 #editor .foot { position: sticky; bottom: -16px; margin: auto -16px -16px; padding: 10px 16px 16px; background: #f3e6c8; border-top: 1px solid #2a223033; border-radius: 0 0 16px 16px; }

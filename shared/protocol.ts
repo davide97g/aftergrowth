@@ -37,7 +37,11 @@ export interface AtlasEntry {
 export type Gift = { from: string; kind: "flower"; color: string } | { from: string; kind: "crop"; crop: string };
 
 /** Things a visitor did while the owner was away, delivered when the owner returns. */
-export type Deed = { by: string; kind: "water"; plot: number; at: number } | { by: string; kind: "gift"; gift: Gift; at: number };
+export type Deed =
+  | { by: string; kind: "water"; plot: number; at: number }
+  | { by: string; kind: "gift"; gift: Gift; at: number }
+  /** a visitor put a crop in one of your troughs */
+  | { by: string; kind: "feed"; trough: string; crop: string; at: number };
 
 export interface Pose { x: number; z: number; yaw: number; speed: number; drawing: boolean }
 
@@ -51,6 +55,7 @@ export type ClientMsg =
   | { t: "atlas" }
   | { t: "water"; island: string; plots: number[] }
   | { t: "gift"; island: string; gift: Gift }
+  | { t: "feed"; island: string; trough: string; crop: string }
   | { t: "say"; phrase: number }
   | { t: "spell"; spell: string; x: number; z: number; power: number }
   /** the owner applied every deed up to this time; the server can forget them */

@@ -299,6 +299,34 @@ class Sound {
     for (let i = 0; i < 6; i++) this.tone(rand(500, 900), t + Math.random() * 0.5, 0.012, 0.06, "sine", undefined, rand(900, 1400));
   }
 
+  /** A petted animal says something. */
+  animal(kind: "cluck" | "quack" | "baa" | "bleat") {
+    const t = this.now;
+    if (t === null) return;
+    if (kind === "cluck") for (let i = 0; i < 3; i++) this.tone(rand(500, 640), t + i * 0.11, 0.04, 0.07, "triangle", undefined, 380);
+    else if (kind === "quack") for (let i = 0; i < 2; i++) this.tone(380, t + i * 0.16, 0.05, 0.12, "sawtooth", this.outside, 300);
+    else {
+      // a wobbly baa (a goat's bleat is higher)
+      const f = kind === "baa" ? 260 : 380;
+      const o = this.ctx!.createOscillator();
+      o.type = "sawtooth";
+      o.frequency.setValueAtTime(f, t);
+      const lfo = this.ctx!.createOscillator();
+      lfo.frequency.value = 9;
+      const depth = this.ctx!.createGain();
+      depth.gain.value = f * 0.06;
+      lfo.connect(depth).connect(o.frequency);
+      const soft = this.ctx!.createBiquadFilter();
+      soft.type = "lowpass";
+      soft.frequency.value = 1400;
+      o.connect(soft).connect(this.env(t, 0.04, 0.05, 0.55));
+      o.start(t);
+      lfo.start(t);
+      o.stop(t + 0.65);
+      lfo.stop(t + 0.65);
+    }
+  }
+
   /** Pruning a tree: a soft wooden knock and a rustle. */
   chop() {
     const t = this.now;

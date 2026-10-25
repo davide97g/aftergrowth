@@ -43,6 +43,8 @@ cam = bpy.data.objects.new("cam", bpy.data.cameras.new("cam"))
 cam.data.type = "ORTHO"
 scene.collection.objects.link(cam)
 scene.camera = cam
+# the models were moved into a row above: refresh their matrices before framing them
+bpy.context.view_layer.update()
 meshes = [o for o in bpy.data.objects if o.type == "MESH" and o.visible_get()]
 pts = [o.matrix_world @ Vector(c) for o in meshes for c in o.bound_box]
 center = sum(pts, Vector()) / len(pts)

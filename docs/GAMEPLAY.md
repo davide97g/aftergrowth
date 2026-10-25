@@ -125,7 +125,7 @@ Every system and its numbers. Values live in code; the file is named next to eac
 |---|---|---|---|
 | Seed & Sprout | Fern | all six seeds, 8 tree saplings (go to your shed) | crops |
 | The Inkwell | Odile | ink (5c a drop), flowers (2c), Glass flask, Crystal decanter (+2 glass) | flowers (1c), ink (2c) |
-| Menagerie | Bramble | animals soon | honey |
+| Menagerie | Bramble | chicken 40c, duck 50c, sheep 90c, goat 110c (to your shed); feed crops at 2× | eggs, duck eggs, wool, milk, honey |
 | Timber & Stone | Rowan | wood 4c, stone 5c, glass 12c, brass 20c | wood, stone (2c) |
 | Scriptorium | Hazel | Wind 60c, Light 80c, Flame 120c (after light) scrolls; charm blanks 2c; rain, sprout, light, gust, bloom, rainbow charms 12–40c | every charm (60%) |
 | Outfitter | Tilly | Copper can, Copper and Moon (+3 brass) cauldrons | |
@@ -135,6 +135,24 @@ Every system and its numbers. Values live in code; the file is named next to eac
   it sells, or a wanted item it pays 1.5× for.
 - The stall row and notice board are there but open in a later update (player stalls).
 - **Satchel (I):** everything you carry, by kind (harvest, goods, flowers, materials, seeds).
+
+## Animals (`farm/animals.ts`, `farm/livestock.ts`)
+
+| Animal | Price | Eats each morning | Gives | Sells for |
+|---|---|---|---|---|
+| Chicken | 40c | wheat or corn | an egg every day | 6c |
+| Duck | 50c | wheat (lays only within 6 m of the pond) | a duck egg every day | 8c |
+| Sheep | 90c | turnip | wool every 2 days | 18c |
+| Goat | 110c | carrot | milk every day | 14c |
+
+- Bought at the Menagerie into your shed; place them from the editor's Animals tab (up to 16).
+  They wander within about 2.4 m of where you put them.
+- **Troughs** (editor, 15c + 2 wood) hold 6 meals. F at a trough adds the crop the animals around
+  it want most. Each morning every animal within 5 m of a trough eats one meal it likes.
+- Fed animals leave their goods in the grass by their spot; F collects them. Hungry animals walk
+  slowly and hang their heads, and make nothing that day. They never come to harm.
+- F on an animal pets it (a hop and a cluck, quack or baa).
+- Visitors can pet animals and leave a crop in a trough (a `feed` deed the owner gets on return).
 
 ## Materials (`farm/gather.ts`, `island/costs.ts`)
 

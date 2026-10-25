@@ -3,6 +3,7 @@ import type { Server } from "node:http";
 import { dirname } from "node:path";
 import { type WebSocket, WebSocketServer } from "ws";
 import type { AtlasEntry, ClientMsg, Deed, IslandSnap, Pose, Profile, ServerMsg } from "../shared/protocol.ts";
+import { CROPS } from "../shared/items.ts";
 import { HUB_ID, MARKET_ID, PHRASES } from "../shared/protocol.ts";
 import { defaultHome, sanitizeLayout } from "../src/island/layout.ts";
 
@@ -154,6 +155,12 @@ export function attachHub(http: Server, file: string) {
           const gift = g?.kind === "flower" ? { from: me.name, kind: "flower" as const, color: clean(g.color, 12) } : g?.kind === "crop" ? { from: me.name, kind: "crop" as const, crop: clean(g.crop, 12) } : null;
           if (!gift) return;
           deliver(m.island, { by: me.name, kind: "gift", gift, at: Date.now() });
+          persist();
+          return;
+        }
+        case "feed": {
+          if (!store.islands[m.island] || m.island === me.id || !(m.crop in CROPS)) return;
+          deliver(m.island, { by: me.name, kind: "feed", trough: clean(m.trough, 48), crop: m.crop, at: Date.now() });
           persist();
           return;
         }

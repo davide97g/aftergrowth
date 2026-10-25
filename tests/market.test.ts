@@ -19,15 +19,20 @@ test("prices swing within bounds and are the same for everyone on a day", () => 
   }
 });
 
-test("nothing can be bought and sold back at a profit, on any day", () => {
+test("nothing can be bought and sold back at a profit, on any day, across shops", () => {
   const save = newGame(12, 3);
   const day0 = marketDay(Date.UTC(2026, 9, 25));
-  for (const shop of [CRATE, ...SHOPS]) {
-    for (let day = day0; day < day0 + 120; day++) {
+  const shops = [CRATE, ...SHOPS];
+  for (let day = day0; day < day0 + 120; day++) {
+    for (const shop of shops) {
       for (const o of shop.sells) {
         const key = offerKey(o);
-        if (!shop.buys.includes(key as ItemId)) continue;
-        assert.ok(buyPrice(shop, o, save, day)! >= sellPrice(shop, key as ItemId, day), `${shop.id} ${key} on day ${day}`);
+        if (!("item" in o) && !("ink" in o)) continue;
+        const cost = buyPrice(shop, o, save, day)!;
+        for (const other of shops) {
+          if (!other.buys.includes(key as ItemId)) continue;
+          assert.ok(cost >= sellPrice(other, key as ItemId, day), `${key}: ${shop.id} sells at ${cost}, ${other.id} pays ${sellPrice(other, key as ItemId, day)} on day ${day}`);
+        }
       }
     }
   }

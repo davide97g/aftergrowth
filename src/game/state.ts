@@ -1,6 +1,7 @@
 import type { Gift } from "../../shared/protocol";
 import type { IslandLayout } from "../island/layout";
 import type { SpellId } from "../magic/glyph";
+import type { Herd } from "../farm/livestock.ts";
 import type { P, Sigil } from "../magic/recognizer";
 
 import { type CropId, FLOWER_COLORS, type FlowerColor, ITEMS, type ItemId } from "../../shared/items.ts";
@@ -85,6 +86,8 @@ export interface Save {
   land: number;
   /** in-game day number, for the weather */
   day: number;
+  /** animals, troughs and their last morning */
+  herd: Herd;
   /** the game day each tree or rock was last pruned or chipped, by placed-object id */
   gathered?: Record<string, number>;
   /** honey waiting in each beehive, by placed-object id */
@@ -122,6 +125,7 @@ export function newGame(plots: number, stones: number): Save {
     ink: 8,
     bag: { "seed:wheat": 2, "seed:turnip": 4 },
     sigils: [...FIRST_SIGILS],
+    herd: { animals: {}, troughs: {}, day: 1 },
     can: { level: 0, water: CANS[0].holds },
     bottle: 0,
     cauldron: 0,
@@ -152,6 +156,7 @@ export function load(plots: number, stones: number): Save {
         s.shed ??= {};
         // saves from before scrolls drew every sigil already
         s.sigils ??= ["growth", "water", "wind", "light", "flame"];
+        s.herd ??= { animals: {}, troughs: {}, day: s.day ?? 1 };
         s.land ??= s.island?.size ?? 1;
         s.day ??= 1;
         return s;

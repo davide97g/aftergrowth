@@ -58,10 +58,10 @@ export class ShopPanel {
       s.coins -= n * price;
       if ("item" in o) give(s, o.item, n);
       else if ("ink" in o) s.ink += n;
-      else if ("sapling" in o) s.shed[o.sapling] = (s.shed[o.sapling] ?? 0) + n;
+      else if ("shed" in o) s.shed[o.shed] = (s.shed[o.shed] ?? 0) + n;
       else if ("scroll" in o) this.onLearn(o.scroll);
       else gear(s, o.gear).buy();
-      this.onChange("gear" in o ? `${gear(s, o.gear).now}!` : "sapling" in o ? `${offerName(o)} · in your shed` : "scroll" in o ? `Learned ${o.scroll}!` : `+${n} ${offerName(o).toLowerCase()}`);
+      this.onChange("gear" in o ? `${gear(s, o.gear).now}!` : "shed" in o ? `${offerName(o)} · in your shed` : "scroll" in o ? `Learned ${o.scroll}!` : `+${n} ${offerName(o).toLowerCase()}`);
     } else if (d.act === "sell") {
       const id = d.id as ItemId | "ink";
       const have = id === "ink" ? s.ink : count(s, id);
@@ -125,11 +125,11 @@ export class ShopPanel {
         return;
       }
       const key = offerKey(o);
-      const have = "item" in o ? count(s, o.item) : "ink" in o ? `${s.ink}/${inkMax(s)}` : s.shed[o.sapling] ?? 0;
+      const have = "item" in o ? count(s, o.item) : "ink" in o ? `${s.ink}/${inkMax(s)}` : s.shed[o.shed] ?? 0;
       const ok = price !== null && s.coins >= price && (!("ink" in o) || s.ink < inkMax(s));
-      const many = !("sapling" in o);
+      const many = !("shed" in o);
       rows.push(`<tr${sp?.item === key ? ` class="hot"` : ""}>
-        <th scope="row">${offerName(o)}${sp?.item === key ? `<small>on sale today</small>` : "sapling" in o ? `<small>goes to your shed</small>` : ""}</th>
+        <th scope="row">${offerName(o)}${sp?.item === key ? `<small>on sale today</small>` : "shed" in o ? `<small>to your shed: place it with the editor</small>` : ""}</th>
         <td>${have}</td>
         <td class="price">${price}c ${shop.daily && sp?.item !== key ? ARROW[trend(key, day)] : ""}</td>
         <td><button data-act="buy" data-i="${i}" data-n="1" ${ok ? "" : "disabled"}>+1</button>${many ? `<button data-act="buy" data-i="${i}" data-n="5" ${ok ? "" : "disabled"}>+5</button>` : ""}</td>
@@ -162,5 +162,5 @@ export class ShopPanel {
 function nameOf(id: string) {
   if (id === "ink") return "Ink";
   if (id in ITEMS) return ITEMS[id as ItemId].name;
-  return offerName({ sapling: id.replace("sapling:", "") } as Offer);
+  return offerName({ shed: id.replace("shed:", "") } as Offer);
 }

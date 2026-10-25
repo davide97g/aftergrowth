@@ -4,11 +4,12 @@ import { BOTTLES, BREW_FLOWERS, CANS, CAULDRONS, type Save } from "../game/state
 import { PRICES } from "../island/costs.ts";
 import { KINDS, type Kind } from "../island/layout.ts";
 import type { Sigil } from "../magic/recognizer.ts";
+import { ANIMALS, ANIMAL_KINDS, FEED, isAnimal } from "../farm/livestock.ts";
 
 export type GearId = "can" | "bottle" | "cauldron";
 
-/** Something a shop sells: an item, drops of ink, the next level of a tool, a sapling for the shed, or a scroll. */
-export type Offer = { item: ItemId } | { ink: true } | { gear: GearId } | { sapling: Kind } | { scroll: Sigil };
+/** Something a shop sells: an item, drops of ink, the next level of a tool, a sapling or an animal for the shed, or a scroll. */
+export type Offer = { item: ItemId } | { ink: true } | { gear: GearId } | { shed: Kind } | { scroll: Sigil };
 
 /** Scrolls teach the sigils a new witch doesn't know. Flame is only sold once you know light. */
 export const SCROLLS: Partial<Record<Sigil, { price: number; needs?: Sigil; blurb: string }>> = {
@@ -57,7 +58,7 @@ export const SHOPS: Shop[] = [
   {
     id: "seeds", name: "Seed & Sprout", building: "shop_seeds", daily: true, rate: 1,
     keeper: { name: "Fern", color: "#5c9e3a", greeting: "Every seed I have, and saplings for your island." },
-    sells: [...SEEDS, ...SAPLINGS.map((k): Offer => ({ sapling: k }))],
+    sells: [...SEEDS, ...SAPLINGS.map((k): Offer => ({ shed: k }))],
     buys: CROPS_BOUGHT,
   },
   {
@@ -68,10 +69,9 @@ export const SHOPS: Shop[] = [
   },
   {
     id: "barn", name: "Menagerie", building: "shop_barn", daily: true, rate: 1,
-    keeper: { name: "Bramble", color: "#c98a3a", greeting: "Honey's always welcome here." },
-    sells: [],
-    buys: ["honey"],
-    soon: "Chickens, ducks, sheep and goats are on their way.",
+    keeper: { name: "Bramble", color: "#c98a3a", greeting: "Keep a trough full and they'll keep you in eggs and wool." },
+    sells: [...ANIMAL_KINDS.map((k): Offer => ({ shed: k })), ...FEED.map((c): Offer => ({ item: `crop:${c}` }))],
+    buys: ["egg", "duck_egg", "wool", "milk", "honey"],
   },
   {
     id: "timber", name: "Timber & Stone", building: "shop_timber", daily: true, rate: 1,
@@ -104,20 +104,21 @@ export function offerKey(o: Offer): string {
   if ("ink" in o) return "ink";
   if ("gear" in o) return `gear:${o.gear}`;
   if ("scroll" in o) return `scroll:${o.scroll}`;
-  return `sapling:${o.sapling}`;
+  return `shed:${o.shed}`;
 }
 
 export function offerName(o: Offer): string {
   if ("item" in o) return ITEMS[o.item].name;
   if ("ink" in o) return "Ink";
-  if ("sapling" in o) return `${KINDS[o.sapling].label} sapling`;
+  if ("shed" in o) return isAnimal(o.shed) ? KINDS[o.shed].label : `${KINDS[o.shed].label} sapling`;
   if ("scroll" in o) return `${o.scroll[0].toUpperCase()}${o.scroll.slice(1)} scroll`;
   return o.gear;
 }
 
 export function todaysSpecial(shop: Shop, day: number): Special | null {
   if (!shop.daily) return null;
-  const sells = shop.sells.filter((o) => !("gear" in o) && !("scroll" in o)).map(offerKey);
+  // things players grow never go on sale: another shop may want them the same day
+  const sells = shop.sells.filter((o) => !("gear" in o) && !("scroll" in o) && !("item" in o && ITEMS[o.item].grown)).map(offerKey);
   const wants = shop.buys.filter((id) => id !== "ink" && ITEMS[id].grown);
   return special(shop.id, sells, wants, day);
 }
@@ -126,7 +127,7 @@ export function todaysSpecial(shop: Shop, day: number): Special | null {
 export function buyPrice(shop: Shop, o: Offer, s: Save, day: number): number | null {
   if ("gear" in o) return gear(s, o.gear).next?.price ?? null;
   if ("scroll" in o) return s.sigils.includes(o.scroll) ? null : SCROLLS[o.scroll]!.price;
-  const base = "item" in o ? ITEMS[o.item].price : "ink" in o ? INK_PRICE.price : PRICES[o.sapling];
+  const base = "item" in o ? ITEMS[o.item].price : "ink" in o ? INK_PRICE.price : isAnimal(o.shed) ? ANIMALS[o.shed].price : PRICES[o.shed];
   if (!shop.daily) return base;
   const key = offerKey(o);
   const sp = todaysSpecial(shop, day);
