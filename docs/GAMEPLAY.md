@@ -16,6 +16,15 @@ Every system and its numbers. Values live in code; the file is named next to eac
   change them on the map's sidebar (Tab). The save lives on the server, so any browser will do.
 - Starting inventory: 20 coins, 8 ink, 2 wheat and 4 turnip seeds, a tin can full of water.
 
+## Your witch's moods (`player/witch.ts`)
+
+- Stand still a few seconds and she does something on her own, picked by the moment: hums and sways
+  (you hear the tune), taps a foot, shades her eyes to look around, spins; yawns and rubs her eyes at
+  night; stretches at dawn; holds her hat on in the wind; turns to a campfire nearby and warms her
+  hands. Any movement stops it.
+- In the rain she holds a big leaf over her head (not while drawing). Her hat and cape flap in the
+  wind.
+
 ## Your familiar (`world/familiar.ts`)
 
 - Every witch has a familiar: a cat (Mochi, to start), a fox or a frog. Change its kind and name on

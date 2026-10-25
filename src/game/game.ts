@@ -116,6 +116,7 @@ export async function startGame(account: Account) {
   witch.position.copy(world.places.find((p) => p.id === params.get("at"))?.pos ?? world.spawn);
   witch.root.rotation.y = Math.PI / 4;
   scene.add(witch.root);
+  witch.onHum = () => sound.hum();
   const life = await Life.create(scene, world);
   const atmos = new Atmosphere(scene, world, theme);
   witch.onFootstep = (at, running) => {
@@ -381,7 +382,15 @@ export async function startGame(account: Account) {
       world.animate(shared.uTime.value, mood.glow);
     }
 
-    // the witch
+    // the witch: what's around her, for her fidgets and the umbrella
+    const fires = world.flames.map((f) => f.getWorldPosition(new Vector3()));
+    witch.mood = cottage.inside ? null : {
+      night: mood.glow,
+      dawn: clock.hour > 5 && clock.hour < 8.5,
+      rain: weather.raining,
+      wind: Math.min(1, (weather.windStrength - 1) / 1.4),
+      fire: fires.find((f) => f.distanceTo(witch.position) < 3) ?? null,
+    };
     const busy = magic.drawing || shops.isOpen || !!stalls?.isOpen || !!realm?.panelOpen || map.isOpen || editor.active || travel.active;
     if (editor.active) editor.focus.addScaledVector(input.wish(editor.focus), dt * 14);
     input.enabled = !editor.active;
@@ -412,7 +421,7 @@ export async function startGame(account: Account) {
         raining: weather.raining,
         night: mood.glow,
         idle,
-        fires: world.flames.map((f) => f.getWorldPosition(new Vector3())),
+        fires,
         butterfly: (p, r) => life.butterfly(p, r),
       });
     }

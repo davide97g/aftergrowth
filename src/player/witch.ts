@@ -1,7 +1,8 @@
-import { Box3, Euler, Group, IcosahedronGeometry, Mesh, MeshToonMaterial, Object3D, Vector3 } from "three";
+import { Box3, CylinderGeometry, DoubleSide, Euler, Group, IcosahedronGeometry, Mesh, MeshToonMaterial, Object3D, SphereGeometry, Vector3 } from "three";
+import { color } from "../core/palette";
 import type { HatStyle } from "../../shared/protocol";
 import { loadGltf } from "../core/assets";
-import { applyPalette, toon } from "../render/toon";
+import { applyPalette, toon, toonRamp } from "../render/toon";
 import { type Ground, flat } from "../world/ground";
 import type { WalkMask } from "../world/walkmask";
 
@@ -9,6 +10,27 @@ const SCALE = 1.05;
 const WALK = 2.6;
 const RUN = 5.2;
 const RADIUS = 0.3;
+
+/** Little things she does when she stands still a while. */
+type Idle = "yawn" | "rub" | "stretch" | "hat" | "sky" | "tap" | "twirl" | "hum" | "warm";
+const IDLE_LENGTH: Record<Idle, number> = { yawn: 2.6, rub: 2, stretch: 2.6, hat: 3, sky: 2.8, tap: 2.2, twirl: 1.5, hum: 4.5, warm: 5 };
+/** idles that need her right hand, which holds the umbrella in the rain */
+const HANDY: ReadonlySet<Idle> = new Set<Idle>(["yawn", "rub", "stretch", "hat", "sky", "warm"]);
+
+/** What's around her: only your own witch gets this, and with it the fidgets and the umbrella. */
+export interface WitchMood {
+  /** 0 day … 1 night */
+  night: number;
+  dawn: boolean;
+  /** 0..1 */
+  rain: number;
+  /** 0..1 */
+  wind: number;
+  /** a fire close by, to warm her hands at */
+  fire: Vector3 | null;
+}
+
+const smooth = (x: number) => x * x * (3 - 2 * x);
 
 const PARTS = ["Body", "Head", "Hat", "Cape", "LegL", "LegR", "ArmL", "ArmR", "EyeL", "EyeR"] as const;
 type Part = (typeof PARTS)[number];
@@ -41,6 +63,16 @@ export class Witch {
   sitting = false;
   private sitBlend = 0;
   onFootstep: (at: Vector3, running: boolean) => void = () => {};
+  /** set every frame for your own witch; null for everyone else (no fidgets, no umbrella) */
+  mood: WitchMood | null = null;
+  /** she starts humming a tune */
+  onHum: () => void = () => {};
+  private still = 0;
+  private nextIdle = 5;
+  private idle: { kind: Idle; t: number } | null = null;
+  private idleBlend = 0;
+  private umbrella: Group | null = null;
+  private umbrellaBlend = 0;
   /** the island's ground height, for every witch (you, visitors, keepers, townsfolk) */
   static ground: Ground = flat;
 
@@ -144,6 +176,185 @@ export class Witch {
   /** A short body reaction to a spell: a happy hop, or a puzzled head shake. */
   react(kind: "cast" | "fizzle" | "gesture") {
     this.reaction = { kind, t: 0 };
+  }
+
+  /** A big leaf on a stem, held over her head in the rain. */
+  private makeUmbrella() {
+    const g = new Group();
+    const leafMat = new MeshToonMaterial({ color: color("turf"), gradientMap: toonRamp(), side: DoubleSide });
+    // a shallow dome, a little longer than wide, tipped back over her head
+    const leaf = new Mesh(new SphereGeometry(1, 14, 5, 0, Math.PI * 2, 0, Math.PI / 2.4), leafMat);
+    leaf.scale.set(0.6, 0.24, 0.5);
+    leaf.position.set(0, 1.86, 0);
+    leaf.rotation.z = -0.1;
+    const rib = new Mesh(new CylinderGeometry(0.012, 0.012, 0.95, 4), toon("cape"));
+    rib.rotation.x = Math.PI / 2;
+    rib.position.set(0, 2.08, 0);
+    // from her raised right hand, above the hat's tip, up to the middle of the leaf
+    const stem = new Mesh(new CylinderGeometry(0.018, 0.022, 1.3, 5), toon("wood-dark"));
+    stem.position.set(-0.185, 1.22, 0);
+    stem.rotation.z = -0.3;
+    g.add(leaf, rib, stem);
+    g.traverse((o) => (o.castShadow = true));
+    g.visible = false;
+    this.parts.Body.add(g);
+    return g;
+  }
+
+  private pickIdle(m: WitchMood): Idle {
+    const pool: Idle[] = [];
+    if (m.fire) pool.push("warm", "warm", "hum");
+    if (m.night > 0.6) pool.push("yawn", "rub", "yawn");
+    else if (m.dawn) pool.push("stretch", "stretch", "sky", "hum");
+    else pool.push("sky", "tap", "twirl", "hum", "hum");
+    if (m.wind > 0.4) pool.push("hat", "hat", "hat");
+    const ok = m.rain > 0.35 ? pool.filter((k) => !HANDY.has(k)) : pool;
+    const from = ok.length ? ok : ["tap", "hum"] as Idle[];
+    return from[Math.floor(Math.random() * from.length)];
+  }
+
+  /** Your own witch: fidgets when she stands still, holds a leaf over her head in the rain, minds her hat in the wind. */
+  private fidget(dt: number, v: number) {
+    const m = this.mood;
+    const P = this.parts;
+    const R = this.rest;
+    this.model.rotation.y = 0;
+    if (!m) return;
+
+    // the hat flaps in the wind
+    P.Hat.rotation.z += Math.sin(this.time * 6.3) * Math.sin(this.time * 1.7) * 0.07 * m.wind;
+    P.Cape.rotation.x += (0.1 + Math.sin(this.time * 9) * 0.06) * m.wind;
+
+    // the leaf umbrella: up while it rains (the pen needs her hand, so not while drawing)
+    const up = m.rain > 0.35 && !this.drawing ? 1 : 0;
+    this.umbrellaBlend += (up - this.umbrellaBlend) * (1 - Math.exp(-dt * 6));
+    const u = this.umbrellaBlend;
+    if (u > 0.01) this.umbrella ??= this.makeUmbrella();
+    if (this.umbrella) {
+      this.umbrella.visible = u > 0.02;
+      this.umbrella.scale.setScalar(Math.max(0.001, smooth(Math.min(1, u * 1.15))));
+      // the right arm reaches up for the stem, no swinging
+      P.ArmR.rotation.x += (R.ArmR.rot.x - 0.1 - P.ArmR.rotation.x) * u;
+      P.ArmR.rotation.z += (R.ArmR.rot.z - 2.55 - P.ArmR.rotation.z) * u;
+    }
+
+    // fidgets: only standing quite still, not drawing, sitting or reacting
+    const free = v < 0.1 && !this.drawing && !this.sitting && !this.reaction;
+    if (!free) {
+      this.still = 0;
+      this.nextIdle = 4 + Math.random() * 4;
+    } else this.still += dt;
+    if (free && !this.idle && this.still > this.nextIdle) {
+      this.idle = { kind: this.pickIdle(m), t: 0 };
+      if (this.idle.kind === "hum") this.onHum();
+    }
+    const live = !!this.idle && free && this.idle.t < IDLE_LENGTH[this.idle.kind];
+    this.idleBlend += ((live ? 1 : 0) - this.idleBlend) * (1 - Math.exp(-dt * (live ? 6 : 10)));
+    const idle = this.idle;
+    if (!idle) return;
+    idle.t += dt;
+    if (!live && this.idleBlend < 0.02) {
+      this.idle = null;
+      this.nextIdle = this.still + 5 + Math.random() * 6;
+      return;
+    }
+    const len = IDLE_LENGTH[idle.kind];
+    const x = Math.min(idle.t / len, 1);
+    const k = this.idleBlend;
+    const t = idle.t;
+    const shut = (amount: number) => {
+      P.EyeL.scale.y = Math.min(P.EyeL.scale.y, 1 - 0.88 * amount);
+      P.EyeR.scale.y = Math.min(P.EyeR.scale.y, 1 - 0.88 * amount);
+    };
+    switch (idle.kind) {
+      case "yawn": {
+        // a big stretch up, head back, eyes shut
+        const s = Math.sin(Math.PI * x) * k;
+        P.ArmL.rotation.z += 2.6 * s;
+        P.ArmR.rotation.z -= 2.6 * s;
+        P.Head.rotation.x -= 0.35 * s;
+        P.Body.scale.y *= 1 + 0.05 * s;
+        shut(s);
+        break;
+      }
+      case "rub": {
+        // rubbing a sleepy eye
+        const s = Math.sin(Math.PI * x) * k;
+        P.ArmR.rotation.x -= 2.3 * s;
+        P.ArmR.rotation.z += 0.55 * s + Math.sin(t * 14) * 0.08 * s;
+        P.Head.rotation.x += 0.15 * s;
+        shut(s);
+        break;
+      }
+      case "stretch": {
+        // arms up, a lean one way, then the other
+        const s = Math.sin(Math.PI * x) * k;
+        P.ArmL.rotation.z += 2.4 * s;
+        P.ArmR.rotation.z -= 2.4 * s;
+        P.Body.rotation.z += Math.sin(x * Math.PI * 2) * 0.2 * s;
+        P.Head.rotation.x -= 0.15 * s;
+        shut(s * 0.6);
+        break;
+      }
+      case "hat": {
+        // holding her hat on in the wind
+        P.ArmR.rotation.x -= 2.5 * k;
+        P.ArmR.rotation.z -= 0.15 * k;
+        P.Head.rotation.x += 0.12 * k;
+        P.Hat.rotation.z *= 1 - 0.7 * k;
+        break;
+      }
+      case "sky": {
+        // a hand over her eyes, looking up and around
+        P.ArmR.rotation.x -= 2.2 * k;
+        P.ArmR.rotation.z += 0.35 * k;
+        P.Head.rotation.x -= 0.4 * k;
+        P.Head.rotation.y += Math.sin(t * 1.4) * 0.5 * k;
+        break;
+      }
+      case "tap": {
+        // tapping a foot, hands behind her back
+        P.LegR.rotation.x -= 0.25 * k * (0.5 + 0.5 * Math.sin(t * 13));
+        P.ArmL.rotation.x += 0.45 * k;
+        P.ArmR.rotation.x += 0.45 * k;
+        P.Head.rotation.z += Math.sin(t * 6.5) * 0.06 * k;
+        break;
+      }
+      case "twirl": {
+        // a happy little spin
+        this.model.rotation.y = Math.PI * 2 * smooth(x);
+        const s = Math.sin(Math.PI * x) * k;
+        P.ArmL.rotation.z += 1.1 * s;
+        P.ArmR.rotation.z -= 1.1 * s;
+        this.model.position.y += Math.sin(Math.PI * x) * 0.08;
+        P.Cape.rotation.x += 0.5 * s;
+        break;
+      }
+      case "hum": {
+        // swaying to a tune
+        P.Body.rotation.z += Math.sin(t * 2.6) * 0.07 * k;
+        P.Head.rotation.z += Math.sin(t * 2.6 + 0.6) * 0.14 * k;
+        P.ArmL.rotation.z += (0.2 + Math.sin(t * 2.6) * 0.1) * k;
+        P.ArmR.rotation.z -= (0.2 - Math.sin(t * 2.6) * 0.1) * k;
+        shut(0.6 * k);
+        break;
+      }
+      case "warm": {
+        // turn to the fire, hands out, rocking gently
+        if (m.fire) {
+          let d = Math.atan2(m.fire.x - this.position.x, m.fire.z - this.position.z) - this.root.rotation.y;
+          d = Math.atan2(Math.sin(d), Math.cos(d));
+          this.root.rotation.y += d * (1 - Math.exp(-dt * 4)) * k;
+        }
+        P.ArmL.rotation.x -= 1.25 * k;
+        P.ArmR.rotation.x -= 1.25 * k;
+        P.ArmL.rotation.z -= 0.25 * k;
+        P.ArmR.rotation.z += 0.25 * k;
+        P.Body.rotation.z += Math.sin(t * 1.8) * 0.05 * k;
+        shut(0.5 * k);
+        break;
+      }
+    }
   }
 
   /** `wish` is the desired world-space direction, length 0..1. */
@@ -261,6 +472,7 @@ export class Witch {
       P.Head.rotation.x += 0.1 * sb * Math.max(0, Math.sin(this.time * 0.3));
       this.model.position.y += 0.22 * sb;
     }
+    this.fidget(dt, v);
     const r = this.reaction;
     if (r) {
       r.t += dt;

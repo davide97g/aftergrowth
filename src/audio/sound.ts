@@ -385,6 +385,24 @@ class Sound {
     }
   }
 
+  /** She hums a little tune: soft, round notes wandering over the pentatonic scale. */
+  hum() {
+    const t = this.now;
+    if (t === null) return;
+    const soft = this.ctx!.createBiquadFilter();
+    soft.type = "lowpass";
+    soft.frequency.value = 1100;
+    soft.connect(this.master);
+    let k = 2 + Math.floor(Math.random() * 3);
+    let at = t;
+    for (let i = 0; i < 7; i++) {
+      const len = [0.3, 0.3, 0.6, 0.45][Math.floor(Math.random() * 4)];
+      this.tone(PENTA[k] / 2, at, 0.03, len + 0.15, "triangle", soft);
+      at += len;
+      k = Math.max(0, Math.min(PENTA.length - 1, k + [-1, 1, 1, -2, 2, 0][Math.floor(Math.random() * 6)]));
+    }
+  }
+
   /** Brushing through leaves and stalks. */
   rustle() {
     const t = this.now;

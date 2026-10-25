@@ -261,6 +261,8 @@ Six pieces, one after another:
   materials; puddles are seeded flat hollows with their own ripple shader; dawn mist is a few soft
   flat wisps; dew is a point cloud of glints; leaves are one instanced mesh from every tree's canopy
   box; bees shuttle between hives and flowers. Footsteps sound like what they land on.
+- **Moods for the witch** (`player/witch.ts`): context-picked fidgets when she stands still (only
+  your own witch gets a mood, so keepers and townsfolk stay put), and a leaf umbrella in the rain.
 
 ## How things were checked
 
