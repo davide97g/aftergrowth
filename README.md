@@ -84,5 +84,6 @@ docs/                design and technical docs (below)
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): how the code fits together, data formats, how to add things
 - [docs/magic.md](docs/magic.md): the ink magic design and its Witch Hat Atelier research
 - [docs/aesthetic.md](docs/aesthetic.md): the visual bible (palette, shading, shapes)
+- [docs/MARKET.md](docs/MARKET.md): design of the Lantern Market island and the full economy
 - [docs/ROADMAP.md](docs/ROADMAP.md): known issues and what could come next
 - [CREDITS.md](CREDITS.md): third-party assets (all CC0)
